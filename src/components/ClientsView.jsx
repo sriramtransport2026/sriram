@@ -1,4 +1,10 @@
 import React, { useState } from 'react';
+import { INDIAN_STATES } from '../utils/indianStates';
+import { 
+  cleanPhone, isValidPhone, 
+  cleanGSTIN, isValidGSTIN, extractPanFromGSTIN, 
+  cleanPAN, isValidPAN 
+} from '../utils/validation';
 import { 
   ArrowLeft, 
   Plus, 
@@ -24,7 +30,7 @@ export function ClientsView({ onBack, clients = [], trips = [], onSaveClient, on
     name: '',
     gstin: '',
     pan: '',
-    state: 'KARNATAKA',
+    state: 'Karnataka',
     address: '',
     phone: '',
     email: '',
@@ -55,7 +61,7 @@ export function ClientsView({ onBack, clients = [], trips = [], onSaveClient, on
       name: '',
       gstin: '',
       pan: '',
-      state: 'KARNATAKA',
+      state: 'Karnataka',
       address: '',
       phone: '',
       email: '',
@@ -81,9 +87,27 @@ export function ClientsView({ onBack, clients = [], trips = [], onSaveClient, on
     e.preventDefault();
     if (!formData.name.trim()) return;
 
+    if (formData.phone && !isValidPhone(formData.phone)) {
+      alert("Contact Phone number must be strictly 10 digits. (Currently: " + cleanPhone(formData.phone).length + " digits)");
+      return;
+    }
+
+    if (formData.gstin && !isValidGSTIN(formData.gstin)) {
+      alert("Invalid GSTIN format. GSTIN must be 15 alphanumeric characters (e.g. 29AABCA7061K1ZH).");
+      return;
+    }
+
+    if (formData.pan && !isValidPAN(formData.pan)) {
+      alert("Invalid PAN format. PAN must be 10 characters (e.g. AABCA7061K).");
+      return;
+    }
+
     await onSaveClient({
       id: editingClient?.id,
       ...formData,
+      phone: cleanPhone(formData.phone),
+      gstin: cleanGSTIN(formData.gstin),
+      pan: cleanPAN(formData.pan),
     });
     setModalOpen(false);
   };
@@ -261,51 +285,89 @@ export function ClientsView({ onBack, clients = [], trips = [], onSaveClient, on
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">GSTIN</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">GSTIN (15 Chars)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (formData.gstin.length === 15 ? (isValidGSTIN(formData.gstin) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                      {formData.gstin.length}/15
+                    </span>
+                  </div>
                   <input
                     type="text"
+                    maxLength={15}
                     placeholder="e.g. 29AABCA7061K1ZH"
                     value={formData.gstin}
                     onChange={(e) => {
-                      const gstin = e.target.value.toUpperCase();
-                      const pan = gstin.length >= 12 ? gstin.substring(2, 12) : formData.pan;
+                      const gstin = cleanGSTIN(e.target.value);
+                      const pan = gstin.length >= 12 ? extractPanFromGSTIN(gstin) : formData.pan;
                       setFormData(f => ({ ...f, gstin, pan }));
                     }}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-mono"
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (formData.gstin && !isValidGSTIN(formData.gstin) && formData.gstin.length === 15 ? "border-rose-400 bg-rose-50/20" : "border-slate-200")}
                   />
+                  {formData.gstin && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (isValidGSTIN(formData.gstin) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {isValidGSTIN(formData.gstin) ? "✓ Valid GSTIN Format" : "15-char standard GSTIN format"}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">PAN Number</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">PAN (10 Chars)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (formData.pan.length === 10 ? (isValidPAN(formData.pan) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                      {formData.pan.length}/10
+                    </span>
+                  </div>
                   <input
                     type="text"
+                    maxLength={10}
                     placeholder="e.g. AABCA7061K"
                     value={formData.pan}
-                    onChange={(e) => setFormData(f => ({ ...f, pan: e.target.value.toUpperCase() }))}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-mono"
+                    onChange={(e) => setFormData(f => ({ ...f, pan: cleanPAN(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (formData.pan && !isValidPAN(formData.pan) && formData.pan.length === 10 ? "border-rose-400 bg-rose-50/20" : "border-slate-200")}
                   />
+                  {formData.pan && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (isValidPAN(formData.pan) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {isValidPAN(formData.pan) ? "✓ Valid PAN Format" : "10-char PAN format (e.g. AABCA7061K)"}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Registered State</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.state}
                     onChange={(e) => setFormData(f => ({ ...f, state: e.target.value }))}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
-                  />
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+                  >
+                    <option value="">-- Select State --</option>
+                    {INDIAN_STATES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Contact Phone</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">Contact Phone (10 Digits)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (formData.phone.length === 10 ? "text-emerald-600" : "text-slate-400")}>
+                      {formData.phone.length}/10
+                    </span>
+                  </div>
                   <input
-                    type="text"
+                    type="tel"
+                    maxLength={10}
+                    placeholder="e.g. 9845012345"
                     value={formData.phone}
-                    onChange={(e) => setFormData(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
+                    onChange={(e) => setFormData(f => ({ ...f, phone: cleanPhone(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (formData.phone && formData.phone.length === 10 ? "border-emerald-400" : "border-slate-200")}
                   />
+                  {formData.phone && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (formData.phone.length === 10 ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {formData.phone.length === 10 ? "✓ 10-Digit Mobile Number" : "Must be strictly 10 digits"}
+                    </p>
+                  )}
                 </div>
               </div>
 

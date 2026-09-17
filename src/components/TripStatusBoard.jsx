@@ -17,12 +17,13 @@ import {
   FileCheck,
   AlertCircle,
   Zap,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 import { LRUploadModal } from './LRUploadModal';
 import logoImg from '../assets/logo.png';
 
-export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTripCompleted, onNavigateToPayments }) {
+export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTripCompleted, onNavigateToPayments, onDeleteTrip }) {
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -193,7 +194,21 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                 <div key={trip.id} className="bg-white rounded-2xl p-4 shadow-soft border border-slate-200/80 space-y-3 hover:shadow-md transition">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold text-brand-navy">#{trip.load_id}</span>
-                    <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                      {onDeleteTrip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
+                          }}
+                          className="text-slate-300 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
+                          title="Delete Trip"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -256,7 +271,21 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                 <div key={trip.id} className="bg-white rounded-2xl p-4 shadow-soft border border-slate-200/80 space-y-3 hover:shadow-md transition">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold text-brand-navy">#{trip.load_id}</span>
-                    <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                      {onDeleteTrip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
+                          }}
+                          className="text-slate-300 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
+                          title="Delete Trip"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -328,7 +357,21 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                      {onDeleteTrip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
+                          }}
+                          className="text-slate-300 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
+                          title="Delete Trip"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -485,6 +528,18 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                         ) : (
                           <span className="text-slate-400 text-[11px] font-medium">Completed</span>
                         )
+                      )}
+                      {onDeleteTrip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition ml-1.5 cursor-pointer inline-block"
+                          title="Delete Trip"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </td>
                   </tr>

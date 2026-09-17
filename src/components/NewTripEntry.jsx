@@ -16,17 +16,23 @@ import {
   Trash2
 } from 'lucide-react';
 import { calculateProfit } from '../services/db';
+import { INDIAN_STATES } from '../utils/indianStates';
+import { 
+  cleanPhone, isValidPhone, 
+  cleanGSTIN, isValidGSTIN, extractPanFromGSTIN, 
+  cleanPAN, isValidPAN 
+} from '../utils/validation';
 import logoImg from '../assets/logo.png';
 
 export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, onQuickAddVehicle, onQuickAddClient }) {
   const [formData, setFormData] = useState({
     load_id: '220' + Math.floor(10000 + Math.random() * 90000),
     loading_date: new Date().toISOString().split('T')[0],
-    client_id: clients[0]?.id || '',
-    vehicle_id: vehicles[0]?.id || '',
-    from_location: 'BANGALORE, Jigani',
+    client_id: '',
+    vehicle_id: '',
+    from_location: '',
     to_location: '',
-    consignor: 'Ashirvad Pipes Pvt Ltd',
+    consignor: '',
     consignee: '',
     invoice_no_ref: '',
     packages: '',
@@ -48,22 +54,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
   const [newVehicle, setNewVehicle] = useState({ vehicle_number: '', vehicle_type: '19FT-SA-IIMT', owner_name: '', owner_phone: '' });
 
   const [showClientModal, setShowClientModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', gstin: '', state: 'KARNATAKA', address: '', phone: '' });
+  const [newClient, setNewClient] = useState({ name: '', gstin: '', pan: '', state: 'Tamil Nadu', address: '', phone: '' });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-
-  // Auto-sync client_id if restricted to single company
-  React.useEffect(() => {
-    if (clients.length === 1 && formData.client_id !== clients[0].id) {
-      setFormData(prev => ({
-        ...prev,
-        client_id: clients[0].id,
-        consignor: clients[0].name || prev.consignor
-      }));
-    }
-  }, [clients]);
 
   // Current Unit Label
   const getUnitLabel = () => {
@@ -217,8 +212,18 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
   const handleCreateVehicle = async (e) => {
     e.preventDefault();
     if (!newVehicle.vehicle_number.trim()) return;
+
+    if (newVehicle.owner_phone && !isValidPhone(newVehicle.owner_phone)) {
+      alert("Owner Phone must be strictly 10 digits. (Currently: " + cleanPhone(newVehicle.owner_phone).length + " digits)");
+      return;
+    }
+
     try {
-      const saved = await onQuickAddVehicle(newVehicle);
+      const saved = await onQuickAddVehicle({
+        ...newVehicle,
+        owner_phone: cleanPhone(newVehicle.owner_phone),
+        vehicle_number: newVehicle.vehicle_number.trim().toUpperCase()
+      });
       setFormData(prev => ({ ...prev, vehicle_id: saved.id }));
       setShowVehicleModal(false);
       setNewVehicle({ vehicle_number: '', vehicle_type: '19FT-SA-IIMT', owner_name: '', owner_phone: '' });
@@ -230,11 +235,38 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
   const handleCreateClient = async (e) => {
     e.preventDefault();
     if (!newClient.name.trim()) return;
+
+    if (newClient.phone && !isValidPhone(newClient.phone)) {
+      alert("Client Contact Phone must be strictly 10 digits. (Currently: " + cleanPhone(newClient.phone).length + " digits)");
+      return;
+    }
+
+    if (newClient.gstin && !isValidGSTIN(newClient.gstin)) {
+      alert("Invalid GSTIN format. GSTIN must be 15 alphanumeric characters (e.g. 29AABCA7061K1ZH).");
+      return;
+    }
+
+    if (newClient.pan && !isValidPAN(newClient.pan)) {
+      alert("Invalid PAN format. PAN must be 10 characters (e.g. AABCA7061K).");
+      return;
+    }
+
     try {
-      const saved = await onQuickAddClient(newClient);
-      setFormData(prev => ({ ...prev, client_id: saved.id }));
+      const saved = await onQuickAddClient({
+        ...newClient,
+        phone: cleanPhone(newClient.phone),
+        gstin: cleanGSTIN(newClient.gstin),
+        pan: cleanPAN(newClient.pan),
+      });
+      if (saved && saved.id) {
+        setFormData(prev => ({ 
+          ...prev, 
+          client_id: saved.id,
+          consignor: saved.name || prev.consignor 
+        }));
+      }
       setShowClientModal(false);
-      setNewClient({ name: '', gstin: '', state: 'KARNATAKA', address: '', phone: '' });
+      setNewClient({ name: '', gstin: '', pan: '', state: 'TAMIL NADU', address: '', phone: '' });
     } catch (err) {
       console.error(err);
     }
@@ -294,7 +326,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
       setFormData(prev => ({
         ...prev,
         load_id: '220' + Math.floor(10000 + Math.random() * 90000),
+        client_id: '',
+        vehicle_id: '',
+        from_location: '',
         to_location: '',
+        consignor: '',
         consignee: '',
         invoice_no_ref: '',
         packages: '',
@@ -415,37 +451,57 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Client (Consignee Billed) <span className="text-rose-500">*</span>
                     </label>
-                    {clients.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowClientModal(true)}
+                      className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 px-2.5 py-0.5 rounded-lg border border-emerald-200 shadow-xs transition cursor-pointer"
+                      title="Add New Client"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Client</span>
+                    </button>
+                  </div>
+                  <select
+                    name="client_id"
+                    required
+                    value={formData.client_id}
+                    onChange={(e) => {
+                      if (e.target.value === '__add_new__') {
+                        setShowClientModal(true);
+                        return;
+                      }
+                      const selectedId = e.target.value;
+                      const selectedClient = clients.find(c => c.id === selectedId);
+                      setFormData(prev => ({
+                        ...prev,
+                        client_id: selectedId,
+                        consignor: selectedClient ? selectedClient.name : ''
+                      }));
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
+                  >
+                    <option value="">-- Select Client --</option>
+                    <option value="__add_new__" className="font-bold text-emerald-700 bg-emerald-50">
+                      ➕ + Add New Client...
+                    </option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.gstin || c.state})
+                      </option>
+                    ))}
+                  </select>
+                  {clients.length === 0 && (
+                    <p className="text-[11px] text-amber-600 font-medium mt-1 flex items-center space-x-1">
+                      <span>⚠️ No clients registered. Click</span>
                       <button
                         type="button"
                         onClick={() => setShowClientModal(true)}
-                        className="text-xs text-brand-green hover:text-brand-green-dark font-bold flex items-center space-x-1"
+                        className="font-bold underline text-amber-800 hover:text-amber-900 cursor-pointer"
                       >
-                        <Plus className="w-3 h-3" />
-                        <span>Add New</span>
+                        + Add Client
                       </button>
-                    )}
-                  </div>
-                  {clients.length === 1 ? (
-                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center space-x-2 text-xs text-blue-900 font-bold shadow-sm">
-                      <Building2 className="w-4 h-4 text-blue-700 shrink-0" />
-                      <span className="truncate">{clients[0].name} ({clients[0].state || 'Assigned Workspace'})</span>
-                    </div>
-                  ) : (
-                    <select
-                      name="client_id"
-                      required
-                      value={formData.client_id}
-                      onChange={handleChange}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
-                    >
-                      <option value="">-- Select Client --</option>
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.gstin || c.state})
-                        </option>
-                      ))}
-                    </select>
+                      <span>to register one.</span>
+                    </p>
                   )}
                 </div>
 
@@ -1118,13 +1174,25 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Owner Phone</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">Owner Phone (10 Digits)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newVehicle.owner_phone.length === 10 ? "text-emerald-600" : "text-slate-400")}>
+                      {newVehicle.owner_phone.length}/10
+                    </span>
+                  </div>
                   <input
                     type="tel"
+                    maxLength={10}
+                    placeholder="e.g. 9845012345"
                     value={newVehicle.owner_phone}
-                    onChange={(e) => setNewVehicle(v => ({ ...v, owner_phone: e.target.value }))}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
+                    onChange={(e) => setNewVehicle(v => ({ ...v, owner_phone: cleanPhone(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newVehicle.owner_phone && newVehicle.owner_phone.length === 10 ? "border-emerald-400" : "border-slate-200")}
                   />
+                  {newVehicle.owner_phone && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (newVehicle.owner_phone.length === 10 ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {newVehicle.owner_phone.length === 10 ? "✓ 10-Digit Mobile Number" : "Must be strictly 10 digits"}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex justify-end space-x-2 pt-2">
@@ -1151,48 +1219,114 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
       {showClientModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
-            <h3 className="text-base font-bold text-slate-900 mb-4 font-display">Add New Client / Consignee</h3>
-            <form onSubmit={handleCreateClient} className="space-y-4">
+            <h3 className="text-base font-bold text-slate-900 mb-4 font-display">Add New Client (Consignee Billed)</h3>
+            <form onSubmit={handleCreateClient} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Client Business Name</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Ashirvad Pipes Pvt Ltd"
                   value={newClient.name}
                   onChange={(e) => setNewClient(c => ({ ...c, name: e.target.value }))}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-brand-navy"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">GSTIN</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 29AABCA7061K1ZH"
-                  value={newClient.gstin}
-                  onChange={(e) => setNewClient(c => ({ ...c, gstin: e.target.value.toUpperCase() }))}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">GSTIN (15 Chars)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newClient.gstin.length === 15 ? (isValidGSTIN(newClient.gstin) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                      {newClient.gstin.length}/15
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={15}
+                    placeholder="e.g. 29AABCA7061K1ZH"
+                    value={newClient.gstin}
+                    onChange={(e) => {
+                      const gstin = cleanGSTIN(e.target.value);
+                      const pan = gstin.length >= 12 ? extractPanFromGSTIN(gstin) : newClient.pan;
+                      setNewClient(c => ({ ...c, gstin, pan }));
+                    }}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newClient.gstin && !isValidGSTIN(newClient.gstin) && newClient.gstin.length === 15 ? "border-rose-400 bg-rose-50/20" : "border-slate-200")}
+                  />
+                  {newClient.gstin && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (isValidGSTIN(newClient.gstin) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {isValidGSTIN(newClient.gstin) ? "✓ Valid GSTIN Format" : "15-char standard GSTIN format"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">PAN (10 Chars)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newClient.pan.length === 10 ? (isValidPAN(newClient.pan) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                      {newClient.pan.length}/10
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    placeholder="e.g. AABCA7061K"
+                    value={newClient.pan}
+                    onChange={(e) => setNewClient(c => ({ ...c, pan: cleanPAN(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newClient.pan && !isValidPAN(newClient.pan) && newClient.pan.length === 10 ? "border-rose-400 bg-rose-50/20" : "border-slate-200")}
+                  />
+                  {newClient.pan && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (isValidPAN(newClient.pan) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {isValidPAN(newClient.pan) ? "✓ Valid PAN Format" : "10-char PAN format (e.g. AABCA7061K)"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">Contact Phone (10 Digits)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newClient.phone.length === 10 ? "text-emerald-600" : "text-slate-400")}>
+                      {newClient.phone.length}/10
+                    </span>
+                  </div>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="e.g. 9944121306"
+                    value={newClient.phone}
+                    onChange={(e) => setNewClient(c => ({ ...c, phone: cleanPhone(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newClient.phone && newClient.phone.length === 10 ? "border-emerald-400" : "border-slate-200")}
+                  />
+                  {newClient.phone && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (newClient.phone.length === 10 ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {newClient.phone.length === 10 ? "✓ 10-Digit Mobile Number" : "Must be strictly 10 digits"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Registered State</label>
+                  <select
+                    value={newClient.state}
+                    onChange={(e) => setNewClient(c => ({ ...c, state: e.target.value }))}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+                  >
+                    <option value="">-- Select State --</option>
+                    {INDIAN_STATES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Registered State</label>
-                <input
-                  type="text"
-                  value={newClient.state}
-                  onChange={(e) => setNewClient(c => ({ ...c, state: e.target.value }))}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Address</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Registered Billing Address</label>
                 <textarea
                   rows="2"
+                  placeholder="Plot / Sy No, Industrial Area, City"
                   value={newClient.address}
                   onChange={(e) => setNewClient(c => ({ ...c, address: e.target.value }))}
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
                 />
               </div>
-              <div className="flex justify-end space-x-2 pt-2">
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowClientModal(false)}
@@ -1202,9 +1336,9 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-bold bg-brand-green hover:bg-brand-green-dark text-white rounded-xl"
+                  className="px-4 py-2 text-sm font-bold bg-brand-green hover:bg-brand-green-dark text-white rounded-xl shadow-xs"
                 >
-                  Save Client
+                  Save & Select Client
                 </button>
               </div>
             </form>

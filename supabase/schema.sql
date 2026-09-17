@@ -477,3 +477,121 @@ SELECT id, username, email, full_name, role, operating_gstin, is_active
 FROM app_users 
 WHERE operating_gstin = '33GWYPP4027A1ZD';
 */
+
+
+-- ##############################################################################
+-- SECTION 4: DEFAULT INITIAL SEED DATA (POPULATE ALL EMPTY TABLES)
+-- ##############################################################################
+
+-- [1] SEED CLIENTS
+INSERT INTO clients (id, name, address, gstin, pan, state, phone, email, is_active, company_gstin, company_name)
+VALUES
+('a0000000-0000-0000-0000-000000000001', 'Ashirvad Pipes Pvt Ltd', 'Plot 32 - WH, Sy No. 32/2 & Sy No.38/2Krishnasagara Village, Attibele Hobli, Anekal, BANGALORE, 562107', '29AABCA7061K1ZH', 'AABCA7061K', 'KARNATAKA', '080-27847000', 'dispatch@ashirvadpipes.com', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('a0000000-0000-0000-0000-000000000002', 'Sri Venkata Sai Agencies', 'Parvatipuram Main Road, Vizianagaram District, Andhra Pradesh, 535501', '37AABCS1234F1Z8', 'AABCS1234F', 'ANDHRA PRADESH', '9440187654', 'info@venkatasai.com', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('a0000000-0000-0000-0000-000000000003', 'Jaibalaji Electricals', 'Bazaar Street, Salem West, Tamil Nadu, 636001', '33AACFJ9876Q1ZM', 'AACFJ9876Q', 'TAMIL NADU', '9443214567', 'billing@jaibalaji.in', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('a0000000-0000-0000-0000-000000000101', 'Sri Ram Logistics — Attibele Cargo Hub', 'Survey No. 44/2, Attibele-Hosur National Highway, Hosur - 635130', '33GWYPP4027A1ZD', 'GWYPP4027A', 'TAMIL NADU', '99441 21306', 'sriramtransporthosur@gmail.com', true, '33GWYPP4027A1ZD', 'Sri Ram Logistics'),
+('a0000000-0000-0000-0000-000000000102', 'Hosur Precision Auto Components Ltd', 'Phase II, SIPCOT Industrial Complex, Mornapalli, Hosur - 635109', '33AABCH8877K1ZZ', 'AABCH8877K', 'TAMIL NADU', '04344-278900', 'logistics@hosurprecision.com', true, '33GWYPP4027A1ZD', 'Sri Ram Logistics'),
+('a0000000-0000-0000-0000-000000000103', 'Apex Agro & Solar Equipment Hosur', 'Thorapalli Agraharam Main Road, Perandapalli, Hosur - 635130', '33AAICA5544L1Z1', 'AAICA5544L', 'TAMIL NADU', '96983 89111', 'dispatch@apexsolarhosur.in', true, '33GWYPP4027A1ZD', 'Sri Ram Logistics')
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  gstin = EXCLUDED.gstin,
+  pan = EXCLUDED.pan,
+  state = EXCLUDED.state,
+  phone = EXCLUDED.phone,
+  email = EXCLUDED.email,
+  company_gstin = EXCLUDED.company_gstin,
+  company_name = EXCLUDED.company_name;
+
+-- [2] SEED VEHICLES
+INSERT INTO vehicles (id, vehicle_number, vehicle_type, owner_name, owner_phone, is_active, company_gstin, company_name)
+VALUES
+('b0000000-0000-0000-0000-000000000001', 'KA01AB5401', '19FT-SA-IIMT', 'Suresh Kumar', '9845012345', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000002', 'KA53B3784', '22FT-TB-10MT', 'Manjunath Gowda', '9845123456', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000003', 'TN70AP3051', '14FT-LCV-4 MT', 'Murugan Transport', '9443012345', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000004', 'KA665220', '19FT-SA-IIMT', 'Ramesh Babu', '9880123456', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000005', 'KA11A0846', '19FT-SA-IIMT', 'Venkatesh R', '9448123456', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000006', 'TN30CC2936', '22FT-TB-10MT', 'Selvam Lorry Service', '9442123456', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000007', 'TN28AR1872', '20FT Taurus 16MT', 'Kandasamy Logistics', '9842123456', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000008', 'KA04D1920', '32FT Multi-Axle 20MT', 'Bangalore Fast Track', '9845129999', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000009', 'TN34AE1077', '19FT-SA-IIMT', 'Senthil Kumar', '9842011111', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000010', 'TN29CE7789', '22FT-TB-10MT', 'Velavan Translines', '9443122222', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000011', 'TN12AE1752', '14FT-LCV-4 MT', 'Sri Balaji Roadways', '9442133333', true, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('b0000000-0000-0000-0000-000000000101', 'TN70AX9922', '19FT Container Closed', 'SRL Fleet Operations', '96983 89111', true, '33GWYPP4027A1ZD', 'Sri Ram Logistics'),
+('b0000000-0000-0000-0000-000000000102', 'TN24AB5511', '22FT Multi-Axle 12MT', 'Hosur Transline Logistics', '99441 21306', true, '33GWYPP4027A1ZD', 'Sri Ram Logistics'),
+('b0000000-0000-0000-0000-000000000103', 'KA51C8800', '14FT LCV Closed Body', 'Perandapalli Translines', '98450 12345', true, '33GWYPP4027A1ZD', 'Sri Ram Logistics')
+ON CONFLICT (id) DO UPDATE SET
+  vehicle_number = EXCLUDED.vehicle_number,
+  vehicle_type = EXCLUDED.vehicle_type,
+  owner_name = EXCLUDED.owner_name,
+  owner_phone = EXCLUDED.owner_phone,
+  company_gstin = EXCLUDED.company_gstin,
+  company_name = EXCLUDED.company_name;
+
+-- [3] SEED INVOICES
+INSERT INTO invoices (id, invoice_number, client_id, invoice_date, sub_total, gst_percent, reverse_charge, notes, is_direct, company_gstin, company_name)
+VALUES
+('d0000000-0000-0000-0000-000000000112', 'SRT-26-27/112', 'a0000000-0000-0000-0000-000000000002', '2026-06-05', 64300.00, 5.0, true, 'Vizianagaram multi-drop consignment billing', false, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('d0000000-0000-0000-0000-000000000111', 'SRT-26-27/111', 'a0000000-0000-0000-0000-000000000001', '2026-06-03', 86100.00, 5.0, true, 'Consolidated CPVC & SWR pipe consignments', false, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('d0000000-0000-0000-0000-000000000110', 'SRT-26-27/110', 'a0000000-0000-0000-0000-000000000003', '2026-06-01', 48500.00, 5.0, true, 'Electrical switchgear industrial transit', false, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('d0000000-0000-0000-0000-000000000109', 'SRT-26-27/109', 'a0000000-0000-0000-0000-000000000001', '2026-05-28', 73900.00, 5.0, true, 'Jigani plant bulk freight invoice', false, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('d0000000-0000-0000-0000-000000000108', 'SRT-26-27/108', 'a0000000-0000-0000-0000-000000000002', '2026-05-25', 58000.00, 5.0, true, 'North Andhra transit billing', false, '33GUPS2382N1ZF', 'Sri Ram Transport'),
+('d0000000-0000-0000-0000-000000000201', 'SRL-26-27/201', 'a0000000-0000-0000-0000-000000000101', '2026-06-02', 54000.00, 5.0, true, 'Attibele hub dedicated container line haul', false, '33GWYPP4027A1ZD', 'Sri Ram Logistics')
+ON CONFLICT (id) DO UPDATE SET
+  invoice_number = EXCLUDED.invoice_number,
+  client_id = EXCLUDED.client_id,
+  sub_total = EXCLUDED.sub_total,
+  gst_percent = EXCLUDED.gst_percent,
+  reverse_charge = EXCLUDED.reverse_charge,
+  notes = EXCLUDED.notes,
+  is_direct = EXCLUDED.is_direct,
+  company_gstin = EXCLUDED.company_gstin,
+  company_name = EXCLUDED.company_name;
+
+-- [4] SEED TRIPS
+INSERT INTO trips (
+  id, load_id, loading_date, vehicle_id, client_id,
+  from_location, to_location, consignor, consignee,
+  packages, description, actual_weight, charged_weight, rate,
+  freight_amount, vehicle_freight, status,
+  lr_number, lr_file_url, invoiced, invoice_id,
+  company_gstin, company_name, payment_status,
+  advance_paid, total_paid_amount, balance_amount,
+  entry_type, is_direct_invoice
+)
+VALUES
+('c0000000-0000-0000-0000-000000000001', '21913689', '2026-06-02', 'b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'BANGALORE, Jigani', 'BANGALORE', 'Ashirvad Pipes Pvt Ltd', 'Local Depot Warehouse', '42 Bundles', 'PVC Conduit Pipes & Bends', 4.5, 4.5, 2200, 9900.00, 8400.00, 'completed', '9081', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', false, NULL, '33GUPS2382N1ZF', 'Sri Ram Transport', 'advance', 5000.00, 5000.00, 4900.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000002', '21914630', '2026-06-02', 'b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'BANGALORE', 'RAMANAGAR', 'Ashirvad Pipes Pvt Ltd', 'Ramanagar Pipe Traders', '30 Bundles', 'CPVC Fitting Boxes', 3.2, 3.5, 2285, 7998.00, 6700.00, 'completed', '9082', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', false, NULL, '33GUPS2382N1ZF', 'Sri Ram Transport', 'half_payment', 4000.00, 4000.00, 3998.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000003', '21915060', '2026-06-02', 'b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'BANGALORE', 'KELAMANGALAM', 'Ashirvad Pipes Pvt Ltd', 'Sri Ram Agency Hardware', '25 Bundles', 'SWR Pipes & Rubber Rings', 2.8, 3.0, 2400, 7200.00, 6000.00, 'completed', '9083', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', false, NULL, '33GUPS2382N1ZF', 'Sri Ram Transport', 'full_payment', 0.00, 7200.00, 0.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000004', '21919535', '2026-06-02', 'b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'BANGALORE', 'RAMANAGAR', 'Ashirvad Pipes Pvt Ltd', 'Sri Venkateswara Traders', '40 Bundles', 'PVC Agricultural Pipes', 4.0, 4.0, 2225, 8900.00, 7600.00, 'completed', '9084', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', false, NULL, '33GUPS2382N1ZF', 'Sri Ram Transport', 'pending', 0.00, 0.00, 8900.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000011', '22026110', '2026-06-06', 'b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'GALORE, KELAMANGA', 'Paloncha', 'Ashirvad Pipes Pvt Ltd', 'Telangana Hardware & Sanitary', '110 Bundles', 'Heavy Industrial SWR Pipes', 14.5, 15.0, 2426, 36400.00, 31000.00, 'in_transit', NULL, NULL, false, NULL, '33GUPS2382N1ZF', 'Sri Ram Transport', 'pending', 0.00, 0.00, 36400.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000013', '22060574', '2026-06-08', 'b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'NGALORE, NELAMANGA', 'MYSURU', 'Ashirvad Pipes Pvt Ltd', 'Mysore Sanitary Corp', '60 Bundles', 'Plumbing Kits & Ball Valves', 6.8, 7.0, 2128, 14900.00, 12500.00, 'booked', NULL, NULL, false, NULL, '33GUPS2382N1ZF', 'Sri Ram Transport', 'pending', 0.00, 0.00, 14900.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000101', 'SRL-220101', '2026-06-03', 'b0000000-0000-0000-0000-000000000101', 'a0000000-0000-0000-0000-000000000101', 'THORAPALLI AGRAHARAM, HOSUR', 'BANGALORE, Whitefield', 'Sri Ram Logistics (Thorapalli)', 'Ashirvad Pipes Pvt Ltd Warehouse', '55 Boxes', 'Industrial UPVC Pipe Fittings & Valves', 5.2, 5.2, 2400, 12480.00, 10500.00, 'completed', 'SRL-101', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', false, NULL, '33GWYPP4027A1ZD', 'Sri Ram Logistics', 'advance', 6000.00, 6000.00, 6480.00, 'standard', false),
+('c0000000-0000-0000-0000-000000000102', 'SRL-220102', '2026-06-04', 'b0000000-0000-0000-0000-000000000102', 'a0000000-0000-0000-0000-000000000102', 'PERANDAPALLI VILLAGE, HOSUR', 'SALEM INDUSTRIAL ESTATE', 'Sri Ram Logistics (Perandapalli)', 'Hosur Precision Auto Hub', '38 Bundles', 'High Pressure Agricultural Pipes', 4.0, 4.0, 2600, 10400.00, 8800.00, 'in_transit', 'SRL-102', NULL, false, NULL, '33GWYPP4027A1ZD', 'Sri Ram Logistics', 'pending', 0.00, 0.00, 10400.00, 'standard', false)
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  freight_amount = EXCLUDED.freight_amount,
+  vehicle_freight = EXCLUDED.vehicle_freight,
+  payment_status = EXCLUDED.payment_status,
+  advance_paid = EXCLUDED.advance_paid,
+  total_paid_amount = EXCLUDED.total_paid_amount,
+  balance_amount = EXCLUDED.balance_amount;
+
+-- [5] SEED PAYMENTS
+INSERT INTO payments (
+  id, company_gstin, company_name, trip_id, client_id,
+  load_id, lr_number, total_freight, payment_type, payment_mode,
+  amount, payer_name, utr_number, payment_date, notes
+)
+VALUES
+('e0000000-0000-0000-0000-000000000001', '33GUPS2382N1ZF', 'Sri Ram Transport', 'c0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', '21913689', '9081', 9900.00, 'advance', 'online', 5000.00, 'Ashirvad Finance Desk', 'CMS290184719', '2026-06-02', 'Advance booking NEFT transfer'),
+('e0000000-0000-0000-0000-000000000002', '33GUPS2382N1ZF', 'Sri Ram Transport', 'c0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', '21914630', '9082', 7998.00, 'half_payment', 'online', 4000.00, 'Ashirvad Pipes Pvt Ltd', 'HDFC00012948', '2026-06-03', '50% installment on dispatch'),
+('e0000000-0000-0000-0000-000000000003', '33GUPS2382N1ZF', 'Sri Ram Transport', 'c0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', '21915060', '9083', 7200.00, 'full_payment', 'cash', 7200.00, 'Cash Depot Collection', NULL, '2026-06-04', 'Full balance settled in cash on delivery'),
+('e0000000-0000-0000-0000-000000000101', '33GWYPP4027A1ZD', 'Sri Ram Logistics', 'c0000000-0000-0000-0000-000000000101', 'a0000000-0000-0000-0000-000000000101', 'SRL-220101', 'SRL-101', 12480.00, 'advance', 'online', 6000.00, 'Attibele Hub Logistics', 'UTIB000293819', '2026-06-03', 'Advance booking transfer')
+ON CONFLICT (id) DO UPDATE SET
+  amount = EXCLUDED.amount,
+  payment_type = EXCLUDED.payment_type,
+  payment_mode = EXCLUDED.payment_mode,
+  payer_name = EXCLUDED.payer_name,
+  utr_number = EXCLUDED.utr_number;
+

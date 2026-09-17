@@ -233,6 +233,21 @@ export function App() {
     await loadAllData();
   };
 
+  const handleDeleteTrip = async (id) => {
+    await db.deleteTrip(id);
+    await loadAllData();
+  };
+
+  const handleDeleteInvoice = async (id) => {
+    await db.deleteInvoice(id);
+    await loadAllData();
+  };
+
+  const handleDeletePayment = async (id) => {
+    await db.deletePayment(id);
+    await loadAllData();
+  };
+
   // PAYMENT ACTIONS
   const handleNavigateToPayments = (tripId) => {
     setSelectedPaymentTripId(tripId || null);
@@ -346,6 +361,7 @@ export function App() {
             onUpdateTripStatus={handleUpdateTripStatus}
             onTripCompleted={handleTripCompleted}
             onNavigateToPayments={handleNavigateToPayments}
+            onDeleteTrip={handleDeleteTrip}
           />
         )}
 
@@ -357,6 +373,7 @@ export function App() {
             invoices={accessibleInvoices}
             companySettings={activeCompany}
             onGenerateInvoice={handleGenerateInvoice}
+            onDeleteInvoice={handleDeleteInvoice}
           />
         )}
 
@@ -398,8 +415,10 @@ export function App() {
             onBack={() => setCurrentView('dashboard')}
             trips={accessibleTrips}
             clients={accessibleClients}
+            payments={payments}
             companySettings={activeCompany}
             onSavePayment={handleSavePayment}
+            onDeletePayment={handleDeletePayment}
             initialSelectedTripId={selectedPaymentTripId}
           />
         )}

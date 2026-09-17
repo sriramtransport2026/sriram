@@ -15,6 +15,10 @@ import {
   Users
 } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { 
+  cleanGSTIN, isValidGSTIN, extractPanFromGSTIN, 
+  cleanPAN, isValidPAN 
+} from '../utils/validation';
 import logoImg from '../assets/logo.png';
 
 export function SettingsView({ onBack, settings, onSaveSettings, onResetDemoData, currentUser, onNavigateToUsers }) {
@@ -29,9 +33,24 @@ export function SettingsView({ onBack, settings, onSaveSettings, onResetDemoData
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.gstin && !isValidGSTIN(formData.gstin)) {
+      alert("Invalid GSTIN format. GSTIN must be 15 alphanumeric characters (e.g. 33GUPS2382N1ZF).");
+      return;
+    }
+
+    if (formData.pan && !isValidPAN(formData.pan)) {
+      alert("Invalid PAN format. PAN must be 10 characters (e.g. GUPS2382N1).");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await onSaveSettings(formData);
+      await onSaveSettings({
+        ...formData,
+        gstin: cleanGSTIN(formData.gstin),
+        pan: cleanPAN(formData.pan),
+      });
       setSuccessMsg('Settings saved successfully!');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
@@ -178,14 +197,29 @@ export function SettingsView({ onBack, settings, onSaveSettings, onResetDemoData
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">GSTIN</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase">GSTIN (15 Chars)</label>
+                <span className={"text-[10px] font-mono font-bold " + (formData.gstin?.length === 15 ? (isValidGSTIN(formData.gstin) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                  {formData.gstin?.length || 0}/15
+                </span>
+              </div>
               <input
                 type="text"
+                maxLength={15}
                 name="gstin"
-                value={formData.gstin}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold"
+                value={formData.gstin || ''}
+                onChange={(e) => {
+                  const gstin = cleanGSTIN(e.target.value);
+                  const pan = gstin.length >= 12 ? extractPanFromGSTIN(gstin) : formData.pan;
+                  setFormData(prev => ({ ...prev, gstin, pan }));
+                }}
+                className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono font-bold " + (formData.gstin && !isValidGSTIN(formData.gstin) && formData.gstin.length === 15 ? "border-rose-400 bg-rose-50/20" : "border-slate-200 bg-slate-50")}
               />
+              {formData.gstin && (
+                <p className={"text-[10px] mt-0.5 font-medium " + (isValidGSTIN(formData.gstin) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                  {isValidGSTIN(formData.gstin) ? "✓ Valid GSTIN Format" : "15-char standard GSTIN format"}
+                </p>
+              )}
             </div>
 
             <div>
@@ -193,21 +227,32 @@ export function SettingsView({ onBack, settings, onSaveSettings, onResetDemoData
               <input
                 type="text"
                 name="sac_code"
-                value={formData.sac_code}
+                value={formData.sac_code || ''}
                 onChange={handleChange}
                 className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">PAN Number</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase">PAN Number (10 Chars)</label>
+                <span className={"text-[10px] font-mono font-bold " + (formData.pan?.length === 10 ? (isValidPAN(formData.pan) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                  {formData.pan?.length || 0}/10
+                </span>
+              </div>
               <input
                 type="text"
+                maxLength={10}
                 name="pan"
-                value={formData.pan}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-semibold"
+                value={formData.pan || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, pan: cleanPAN(e.target.value) }))}
+                className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono font-semibold " + (formData.pan && !isValidPAN(formData.pan) && formData.pan.length === 10 ? "border-rose-400 bg-rose-50/20" : "border-slate-200 bg-slate-50")}
               />
+              {formData.pan && (
+                <p className={"text-[10px] mt-0.5 font-medium " + (isValidPAN(formData.pan) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                  {isValidPAN(formData.pan) ? "✓ Valid PAN Format" : "10-char PAN format (e.g. AABCA7061K)"}
+                </p>
+              )}
             </div>
 
             <div>

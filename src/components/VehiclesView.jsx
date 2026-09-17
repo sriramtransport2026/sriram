@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { cleanPhone, isValidPhone } from '../utils/validation';
 import { 
   ArrowLeft, 
   Plus, 
@@ -72,9 +73,15 @@ export function VehiclesView({ onBack, vehicles = [], trips = [], onSaveVehicle,
     e.preventDefault();
     if (!formData.vehicle_number.trim()) return;
 
+    if (formData.owner_phone && !isValidPhone(formData.owner_phone)) {
+      alert("Owner Phone must be strictly 10 digits. (Currently: " + cleanPhone(formData.owner_phone).length + " digits)");
+      return;
+    }
+
     await onSaveVehicle({
       id: editingVehicle?.id,
       ...formData,
+      owner_phone: cleanPhone(formData.owner_phone),
       vehicle_number: formData.vehicle_number.trim().toUpperCase(),
     });
     setModalOpen(false);
@@ -270,14 +277,25 @@ export function VehiclesView({ onBack, vehicles = [], trips = [], onSaveVehicle,
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Owner Phone</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">Owner Phone (10 Digits)</label>
+                  <span className={"text-[10px] font-mono font-bold " + (formData.owner_phone.length === 10 ? "text-emerald-600" : "text-slate-400")}>
+                    {formData.owner_phone.length}/10
+                  </span>
+                </div>
                 <input
                   type="tel"
+                  maxLength={10}
                   placeholder="e.g. 9845012345"
                   value={formData.owner_phone}
-                  onChange={(e) => setFormData(f => ({ ...f, owner_phone: e.target.value }))}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
+                  onChange={(e) => setFormData(f => ({ ...f, owner_phone: cleanPhone(e.target.value) }))}
+                  className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (formData.owner_phone && formData.owner_phone.length === 10 ? "border-emerald-400" : "border-slate-200")}
                 />
+                {formData.owner_phone && (
+                  <p className={"text-[10px] mt-0.5 font-medium " + (formData.owner_phone.length === 10 ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                    {formData.owner_phone.length === 10 ? "✓ 10-Digit Mobile Number" : "Must be strictly 10 digits"}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">

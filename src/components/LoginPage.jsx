@@ -15,11 +15,7 @@ import {
   Sparkles, 
   ArrowRight, 
   Phone, 
-  MapPin, 
-  HelpCircle,
-  X,
-  Copy,
-  Check
+  MapPin
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import { db } from '../services/db';
@@ -31,8 +27,6 @@ export function LoginPage({ onLoginSuccess }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [showForgotModal, setShowForgotModal] = useState(false);
-  const [copiedQuery, setCopiedQuery] = useState(false);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -53,12 +47,6 @@ export function LoginPage({ onLoginSuccess }) {
     }
   };
 
-  const copyResetSql = () => {
-    const sql = `SELECT change_app_user_password('${identifier || 'admin@sriramtransport.com'}', 'NewPassword@123');`;
-    navigator.clipboard.writeText(sql);
-    setCopiedQuery(true);
-    setTimeout(() => setCopiedQuery(false), 2000);
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center relative overflow-hidden font-sans select-none">
@@ -225,7 +213,7 @@ export function LoginPage({ onLoginSuccess }) {
                       id="login-identifier-input"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="admin@sriramtransport.com or username"
+                      placeholder="Mail "
                       required
                       className="w-full pl-10 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/15 rounded-xl text-sm font-medium text-slate-900 transition-colors placeholder:text-slate-400"
                     />
@@ -234,18 +222,9 @@ export function LoginPage({ onLoginSuccess }) {
 
                 {/* Password Field */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotModal(true)}
-                      className="text-xs font-semibold text-brand-gold-dark hover:text-amber-700 hover:underline cursor-pointer"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Password
+                  </label>
                   <div className="relative rounded-xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Lock className="h-4 w-4" />
@@ -319,70 +298,6 @@ export function LoginPage({ onLoginSuccess }) {
         </div>
       </div>
 
-      {/* =========================================================================
-          FORGOT PASSWORD / DATABASE ADMIN RESET MODAL
-         ========================================================================= */}
-      {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-5 animate-scale-up">
-            
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-300">
-                  <HelpCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-brand-navy">Password Reset Instructions</h3>
-                  <p className="text-xs text-slate-500">Sri Ram Transport Database Administration</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowForgotModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
-              <p>
-                Passwords for Sri Ram Transport are cryptographically hashed using <strong className="text-slate-900 font-semibold">PostgreSQL pgcrypto (Blowfish bcrypt)</strong>.
-              </p>
-
-              <div className="p-3.5 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] space-y-2 border border-slate-800">
-                <div className="flex items-center justify-between text-slate-400 pb-1 border-b border-slate-800">
-                  <span>Supabase SQL Reset Command:</span>
-                  <button
-                    onClick={copyResetSql}
-                    className="flex items-center space-x-1 text-brand-gold hover:text-brand-gold-light cursor-pointer text-[10px]"
-                  >
-                    {copiedQuery ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedQuery ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-                <code className="block text-emerald-400 break-all select-all">
-                  SELECT change_app_user_password('{identifier || 'admin@sriramtransport.com'}', 'NewPassword@123');
-                </code>
-              </div>
-
-              <p className="text-[11px] text-slate-500">
-                For branch assistance, contact Sri Ram Transport IT Support at <strong className="text-slate-800 font-bold">+91 99441 21306</strong>.
-              </p>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowForgotModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-brand-navy hover:bg-brand-navy-dark text-white text-xs font-bold transition-colors cursor-pointer"
-              >
-                Return to Login
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }

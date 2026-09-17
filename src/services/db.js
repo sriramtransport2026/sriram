@@ -14,6 +14,116 @@ const STORAGE_KEYS = {
   COMPANY_ENTITIES: 'srt_company_entities_v1',
 };
 
+// UUID Validation, Generation & Legacy ID Resolvers for Supabase Postgres Foreign Key Integrity
+export const isUuid = (str) => {
+  return typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+};
+
+export const generateUuid = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+export const CLIENT_ID_MAP = {
+  'cli-001': 'a0000000-0000-0000-0000-000000000001',
+  'cli-002': 'a0000000-0000-0000-0000-000000000002',
+  'cli-003': 'a0000000-0000-0000-0000-000000000003',
+  'cli-srl-001': 'a0000000-0000-0000-0000-000000000101',
+  'cli-srl-002': 'a0000000-0000-0000-0000-000000000102',
+  'cli-srl-003': 'a0000000-0000-0000-0000-000000000103',
+};
+
+export const VEHICLE_ID_MAP = {
+  'veh-001': 'b0000000-0000-0000-0000-000000000001',
+  'veh-002': 'b0000000-0000-0000-0000-000000000002',
+  'veh-003': 'b0000000-0000-0000-0000-000000000003',
+  'veh-004': 'b0000000-0000-0000-0000-000000000004',
+  'veh-005': 'b0000000-0000-0000-0000-000000000005',
+  'veh-006': 'b0000000-0000-0000-0000-000000000006',
+  'veh-007': 'b0000000-0000-0000-0000-000000000007',
+  'veh-008': 'b0000000-0000-0000-0000-000000000008',
+  'veh-009': 'b0000000-0000-0000-0000-000000000009',
+  'veh-010': 'b0000000-0000-0000-0000-000000000010',
+  'veh-011': 'b0000000-0000-0000-0000-000000000011',
+  'veh-srl-001': 'b0000000-0000-0000-0000-000000000101',
+  'veh-srl-002': 'b0000000-0000-0000-0000-000000000102',
+  'veh-srl-003': 'b0000000-0000-0000-0000-000000000103',
+};
+
+export const INVOICE_ID_MAP = {
+  'inv-srt-112': 'd0000000-0000-0000-0000-000000000112',
+  'inv-srt-111': 'd0000000-0000-0000-0000-000000000111',
+  'inv-srt-110': 'd0000000-0000-0000-0000-000000000110',
+  'inv-srt-109': 'd0000000-0000-0000-0000-000000000109',
+  'inv-srt-108': 'd0000000-0000-0000-0000-000000000108',
+  'inv-srl-101': 'd0000000-0000-0000-0000-000000000201',
+};
+
+export const TRIP_ID_MAP = {
+  'trip-001': 'c0000000-0000-0000-0000-000000000001',
+  'trip-002': 'c0000000-0000-0000-0000-000000000002',
+  'trip-003': 'c0000000-0000-0000-0000-000000000003',
+  'trip-004': 'c0000000-0000-0000-0000-000000000004',
+  'trip-011': 'c0000000-0000-0000-0000-000000000011',
+  'trip-013': 'c0000000-0000-0000-0000-000000000013',
+  'trip-srl-001': 'c0000000-0000-0000-0000-000000000101',
+  'trip-srl-002': 'c0000000-0000-0000-0000-000000000102',
+};
+
+export const PAYMENT_ID_MAP = {
+  'pay-001': 'e0000000-0000-0000-0000-000000000001',
+  'pay-002': 'e0000000-0000-0000-0000-000000000002',
+  'pay-003': 'e0000000-0000-0000-0000-000000000003',
+  'pay-srl-001': 'e0000000-0000-0000-0000-000000000101',
+};
+
+export const resolveClientId = (id) => {
+  if (!id) return null;
+  if (isUuid(id)) return id;
+  if (CLIENT_ID_MAP[id]) return CLIENT_ID_MAP[id];
+  return null;
+};
+
+export const resolveVehicleId = (id) => {
+  if (!id) return null;
+  if (isUuid(id)) return id;
+  if (VEHICLE_ID_MAP[id]) return VEHICLE_ID_MAP[id];
+  return null;
+};
+
+export const resolveInvoiceId = (id) => {
+  if (!id) return null;
+  if (isUuid(id)) return id;
+  if (INVOICE_ID_MAP[id]) return INVOICE_ID_MAP[id];
+  return null;
+};
+
+export const resolveTripId = (id) => {
+  if (!id) return null;
+  if (isUuid(id)) return id;
+  if (TRIP_ID_MAP[id]) return TRIP_ID_MAP[id];
+  return null;
+};
+
+export const resolvePaymentId = (id) => {
+  if (!id) return null;
+  if (isUuid(id)) return id;
+  if (PAYMENT_ID_MAP[id]) return PAYMENT_ID_MAP[id];
+  return null;
+};
+
+export const sanitizeUuid = (id) => {
+  if (!id) return null;
+  if (isUuid(id)) return id;
+  return null;
+};
+
 // Two Official Operating Entities for Sri Ram Group (Hosur Hub)
 export const DEFAULT_COMPANY_ENTITIES = {
   '33GUPS2382N1ZF': {
@@ -156,10 +266,10 @@ const DEFAULT_SETTINGS = {
 const INITIAL_CLIENTS = [
   // Sri Ram Transport Clients (GST: 33GUPS2382N1ZF)
   {
-    id: 'cli-001',
+    id: 'a0000000-0000-0000-0000-000000000001',
     company_gstin: '33GUPS2382N1ZF',
     name: 'Ashirvad Pipes Pvt Ltd',
-    address: 'Plot 32 - WH, Sy No. 32/2 & Sy No.38/2Krishnasagara Village, Attibele Hobli, Anekal-undefined, BANGALORE, 562107, India',
+    address: 'Plot 32 - WH, Sy No. 32/2 & Sy No.38/2Krishnasagara Village, Attibele Hobli, Anekal, BANGALORE, 562107, India',
     gstin: '29AABCA7061K1ZH',
     pan: 'AABCA7061K',
     state: 'KARNATAKA',
@@ -168,7 +278,7 @@ const INITIAL_CLIENTS = [
     created_at: new Date('2026-05-01').toISOString(),
   },
   {
-    id: 'cli-002',
+    id: 'a0000000-0000-0000-0000-000000000002',
     company_gstin: '33GUPS2382N1ZF',
     name: 'Sri Venkata Sai Agencies',
     address: 'Parvatipuram Main Road, Vizianagaram District, Andhra Pradesh, 535501',
@@ -180,7 +290,7 @@ const INITIAL_CLIENTS = [
     created_at: new Date('2026-05-10').toISOString(),
   },
   {
-    id: 'cli-003',
+    id: 'a0000000-0000-0000-0000-000000000003',
     company_gstin: '33GUPS2382N1ZF',
     name: 'Jaibalaji Electricals',
     address: 'Bazaar Street, Salem West, Tamil Nadu, 636001',
@@ -193,7 +303,7 @@ const INITIAL_CLIENTS = [
   },
   // Sri Ram Logistics Dedicated Clients (GST: 33GWYPP4027A1ZD)
   {
-    id: 'cli-srl-001',
+    id: 'a0000000-0000-0000-0000-000000000101',
     company_gstin: '33GWYPP4027A1ZD',
     name: 'Sri Ram Logistics — Attibele Cargo Hub',
     address: 'Survey No. 44/2, Attibele-Hosur National Highway, Hosur - 635130, Krishnagiri Dist.',
@@ -205,7 +315,7 @@ const INITIAL_CLIENTS = [
     created_at: new Date('2026-06-01').toISOString(),
   },
   {
-    id: 'cli-srl-002',
+    id: 'a0000000-0000-0000-0000-000000000102',
     company_gstin: '33GWYPP4027A1ZD',
     name: 'Hosur Precision Auto Components Ltd',
     address: 'Phase II, SIPCOT Industrial Complex, Mornapalli, Hosur - 635109',
@@ -217,7 +327,7 @@ const INITIAL_CLIENTS = [
     created_at: new Date('2026-06-01').toISOString(),
   },
   {
-    id: 'cli-srl-003',
+    id: 'a0000000-0000-0000-0000-000000000103',
     company_gstin: '33GWYPP4027A1ZD',
     name: 'Apex Agro & Solar Equipment Hosur',
     address: 'Thorapalli Agraharam Main Road, Perandapalli, Hosur - 635130',
@@ -232,30 +342,31 @@ const INITIAL_CLIENTS = [
 
 const INITIAL_VEHICLES = [
   // Sri Ram Transport Vehicles (GST: 33GUPS2382N1ZF)
-  { id: 'veh-001', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA01AB5401', vehicle_type: '19FT-SA-IIMT', owner_name: 'Suresh Kumar', owner_phone: '9845012345' },
-  { id: 'veh-002', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA53B3784', vehicle_type: '22FT-TB-10MT', owner_name: 'Manjunath Gowda', owner_phone: '9845123456' },
-  { id: 'veh-003', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN70AP3051', vehicle_type: '14FT-LCV-4 MT', owner_name: 'Murugan Transport', owner_phone: '9443012345' },
-  { id: 'veh-004', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA665220', vehicle_type: '19FT-SA-IIMT', owner_name: 'Ramesh Babu', owner_phone: '9880123456' },
-  { id: 'veh-005', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA11A0846', vehicle_type: '19FT-SA-IIMT', owner_name: 'Venkatesh R', owner_phone: '9448123456' },
-  { id: 'veh-006', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN30CC2936', vehicle_type: '22FT-TB-10MT', owner_name: 'Selvam Lorry Service', owner_phone: '9442123456' },
-  { id: 'veh-007', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA25D5462', vehicle_type: '14FT-LCV-4 MT', owner_name: 'Anand K', owner_phone: '9844012345' },
-  { id: 'veh-008', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA51AA8161', vehicle_type: '19FT-SA-IIMT', owner_name: 'Syed Transport', owner_phone: '9845987654' },
-  { id: 'veh-009', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN12AE1752', vehicle_type: '14FT-LCV-4 MT', owner_name: 'Kumaravel Lorry', owner_phone: '9443198765' },
-  { id: 'veh-010', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN29CE7789', vehicle_type: '22FT-TB-10MT', owner_name: 'Dharmapuri Carriers', owner_phone: '9443210987' },
-  { id: 'veh-011', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN34AE1077', vehicle_type: '22FT-TB-10MT', owner_name: 'Tiruchengode Transports', owner_phone: '9443321098' },
+  { id: 'b0000000-0000-0000-0000-000000000001', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA01AB5401', vehicle_type: '19FT-SA-IIMT', owner_name: 'Suresh Kumar', owner_phone: '9845012345' },
+  { id: 'b0000000-0000-0000-0000-000000000002', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA53B3784', vehicle_type: '22FT-TB-10MT', owner_name: 'Manjunath Gowda', owner_phone: '9845123456' },
+  { id: 'b0000000-0000-0000-0000-000000000003', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN70AP3051', vehicle_type: '14FT-LCV-4 MT', owner_name: 'Murugan Transport', owner_phone: '9443012345' },
+  { id: 'b0000000-0000-0000-0000-000000000004', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA665220', vehicle_type: '19FT-SA-IIMT', owner_name: 'Ramesh Babu', owner_phone: '9880123456' },
+  { id: 'b0000000-0000-0000-0000-000000000005', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA11A0846', vehicle_type: '19FT-SA-IIMT', owner_name: 'Venkatesh R', owner_phone: '9448123456' },
+  { id: 'b0000000-0000-0000-0000-000000000006', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN30CC2936', vehicle_type: '22FT-TB-10MT', owner_name: 'Selvam Lorry Service', owner_phone: '9442123456' },
+  { id: 'b0000000-0000-0000-0000-000000000007', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN28AR1872', vehicle_type: '20FT Taurus 16MT', owner_name: 'Kandasamy Logistics', owner_phone: '9842123456' },
+  { id: 'b0000000-0000-0000-0000-000000000008', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'KA04D1920', vehicle_type: '32FT Multi-Axle 20MT', owner_name: 'Bangalore Fast Track', owner_phone: '9845129999' },
+  { id: 'b0000000-0000-0000-0000-000000000009', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN34AE1077', vehicle_type: '19FT-SA-IIMT', owner_name: 'Senthil Kumar', owner_phone: '9842011111' },
+  { id: 'b0000000-0000-0000-0000-000000000010', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN29CE7789', vehicle_type: '22FT-TB-10MT', owner_name: 'Velavan Translines', owner_phone: '9443122222' },
+  { id: 'b0000000-0000-0000-0000-000000000011', company_gstin: '33GUPS2382N1ZF', vehicle_number: 'TN12AE1752', vehicle_type: '14FT-LCV-4 MT', owner_name: 'Sri Balaji Roadways', owner_phone: '9442133333' },
   
   // Sri Ram Logistics Vehicles (GST: 33GWYPP4027A1ZD)
-  { id: 'veh-srl-001', company_gstin: '33GWYPP4027A1ZD', vehicle_number: 'TN70AX9922', vehicle_type: '20FT Container Eicher', owner_name: 'SRL Fleet Express', owner_phone: '99441 21306' },
-  { id: 'veh-srl-002', company_gstin: '33GWYPP4027A1ZD', vehicle_number: 'TN24AB5511', vehicle_type: '32FT Multi-Axle Truck', owner_name: 'Thorapalli Heavy Carriers', owner_phone: '96983 89111' },
-  { id: 'veh-srl-003', company_gstin: '33GWYPP4027A1ZD', vehicle_number: 'KA51C8800', vehicle_type: '14FT LCV Closed Body', owner_name: 'Perandapalli Translines', owner_phone: '98450 12345' }
+  { id: 'b0000000-0000-0000-0000-000000000101', company_gstin: '33GWYPP4027A1ZD', vehicle_number: 'TN70AX9922', vehicle_type: '20FT Container Eicher', owner_name: 'SRL Fleet Express', owner_phone: '96983 89111' },
+  { id: 'b0000000-0000-0000-0000-000000000102', company_gstin: '33GWYPP4027A1ZD', vehicle_number: 'TN24AB5511', vehicle_type: '32FT Multi-Axle Truck', owner_name: 'Thorapalli Heavy Carriers', owner_phone: '99441 21306' },
+  { id: 'b0000000-0000-0000-0000-000000000103', company_gstin: '33GWYPP4027A1ZD', vehicle_number: 'KA51C8800', vehicle_type: '14FT LCV Closed Body', owner_name: 'Perandapalli Translines', owner_phone: '98450 12345' }
 ];
 
 export const INITIAL_PAYMENTS = [
   {
-    id: 'pay-001',
+    id: 'e0000000-0000-0000-0000-000000000001',
     company_gstin: '33GUPS2382N1ZF',
     company_name: 'Sri Ram Transport',
-    trip_id: 'trip-001',
+    trip_id: 'c0000000-0000-0000-0000-000000000001',
+    client_id: 'a0000000-0000-0000-0000-000000000001',
     load_id: '21913689',
     lr_number: '9081',
     client_name: 'Ashirvad Pipes Pvt Ltd',
@@ -270,10 +381,11 @@ export const INITIAL_PAYMENTS = [
     created_at: '2026-06-02T10:30:00.000Z'
   },
   {
-    id: 'pay-002',
+    id: 'e0000000-0000-0000-0000-000000000002',
     company_gstin: '33GUPS2382N1ZF',
     company_name: 'Sri Ram Transport',
-    trip_id: 'trip-002',
+    trip_id: 'c0000000-0000-0000-0000-000000000002',
+    client_id: 'a0000000-0000-0000-0000-000000000001',
     load_id: '21914630',
     lr_number: '9082',
     client_name: 'Ashirvad Pipes Pvt Ltd',
@@ -288,10 +400,11 @@ export const INITIAL_PAYMENTS = [
     created_at: '2026-06-03T11:00:00.000Z'
   },
   {
-    id: 'pay-003',
+    id: 'e0000000-0000-0000-0000-000000000003',
     company_gstin: '33GUPS2382N1ZF',
     company_name: 'Sri Ram Transport',
-    trip_id: 'trip-003',
+    trip_id: 'c0000000-0000-0000-0000-000000000003',
+    client_id: 'a0000000-0000-0000-0000-000000000001',
     load_id: '21915060',
     lr_number: '9083',
     client_name: 'Ashirvad Pipes Pvt Ltd',
@@ -306,10 +419,11 @@ export const INITIAL_PAYMENTS = [
     created_at: '2026-06-04T15:30:00.000Z'
   },
   {
-    id: 'pay-srl-001',
+    id: 'e0000000-0000-0000-0000-000000000101',
     company_gstin: '33GWYPP4027A1ZD',
     company_name: 'Sri Ram Logistics',
-    trip_id: 'trip-srl-001',
+    trip_id: 'c0000000-0000-0000-0000-000000000101',
+    client_id: 'a0000000-0000-0000-0000-000000000101',
     load_id: 'SRL-220101',
     lr_number: 'SRL-101',
     client_name: 'Sri Ram Logistics — Attibele Cargo Hub',
@@ -1170,55 +1284,125 @@ function ensureSeedData() {
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
     setLocalItem(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
   }
+
+  // Migrate any legacy string IDs in localStorage to proper Supabase UUIDs
+  const storedClients = getLocalItem(STORAGE_KEYS.CLIENTS, []);
+  if (storedClients.some(c => CLIENT_ID_MAP[c.id])) {
+    const upgraded = storedClients.map(c => ({
+      ...c,
+      id: CLIENT_ID_MAP[c.id] || (isUuid(c.id) ? c.id : generateUuid())
+    }));
+    setLocalItem(STORAGE_KEYS.CLIENTS, upgraded);
+  }
+
+  const storedVehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
+  if (storedVehicles.some(v => VEHICLE_ID_MAP[v.id])) {
+    const upgraded = storedVehicles.map(v => ({
+      ...v,
+      id: VEHICLE_ID_MAP[v.id] || (isUuid(v.id) ? v.id : generateUuid())
+    }));
+    setLocalItem(STORAGE_KEYS.VEHICLES, upgraded);
+  }
+
+  const storedTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
+  if (storedTrips.some(t => CLIENT_ID_MAP[t.client_id] || VEHICLE_ID_MAP[t.vehicle_id] || TRIP_ID_MAP[t.id])) {
+    const upgraded = storedTrips.map(t => ({
+      ...t,
+      id: TRIP_ID_MAP[t.id] || (isUuid(t.id) ? t.id : generateUuid()),
+      client_id: resolveClientId(t.client_id) || t.client_id,
+      vehicle_id: resolveVehicleId(t.vehicle_id) || t.vehicle_id,
+      invoice_id: resolveInvoiceId(t.invoice_id) || t.invoice_id,
+    }));
+    setLocalItem(STORAGE_KEYS.TRIPS, upgraded);
+  }
+
+  const storedInvoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
+  if (storedInvoices.some(i => CLIENT_ID_MAP[i.client_id] || INVOICE_ID_MAP[i.id])) {
+    const upgraded = storedInvoices.map(i => ({
+      ...i,
+      id: INVOICE_ID_MAP[i.id] || (isUuid(i.id) ? i.id : generateUuid()),
+      client_id: resolveClientId(i.client_id) || i.client_id,
+    }));
+    setLocalItem(STORAGE_KEYS.INVOICES, upgraded);
+  }
+
+  const storedPayments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
+  if (storedPayments.some(p => CLIENT_ID_MAP[p.client_id] || TRIP_ID_MAP[p.trip_id] || PAYMENT_ID_MAP[p.id])) {
+    const upgraded = storedPayments.map(p => ({
+      ...p,
+      id: PAYMENT_ID_MAP[p.id] || (isUuid(p.id) ? p.id : generateUuid()),
+      trip_id: resolveTripId(p.trip_id) || p.trip_id,
+      client_id: resolveClientId(p.client_id) || p.client_id,
+      invoice_id: resolveInvoiceId(p.invoice_id) || p.invoice_id,
+    }));
+    setLocalItem(STORAGE_KEYS.PAYMENTS, upgraded);
+  }
   
-  const existingClients = getLocalItem(STORAGE_KEYS.CLIENTS, []);
-  if (existingClients.length === 0) {
-    setLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-  } else if (!existingClients.some(c => c.company_gstin === '33GWYPP4027A1ZD')) {
-    const srlClients = INITIAL_CLIENTS.filter(c => c.company_gstin === '33GWYPP4027A1ZD');
-    setLocalItem(STORAGE_KEYS.CLIENTS, [...existingClients, ...srlClients]);
-  }
+  if (!isSupabaseConfigured) {
+    const existingClients = getLocalItem(STORAGE_KEYS.CLIENTS, []);
+    if (existingClients.length === 0) {
+      setLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
+    } else if (!existingClients.some(c => c.company_gstin === '33GWYPP4027A1ZD')) {
+      const srlClients = INITIAL_CLIENTS.filter(c => c.company_gstin === '33GWYPP4027A1ZD');
+      setLocalItem(STORAGE_KEYS.CLIENTS, [...existingClients, ...srlClients]);
+    }
 
-  const existingVehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
-  if (existingVehicles.length === 0) {
-    setLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
-  } else if (!existingVehicles.some(v => v.company_gstin === '33GWYPP4027A1ZD')) {
-    const srlVehicles = INITIAL_VEHICLES.filter(v => v.company_gstin === '33GWYPP4027A1ZD');
-    setLocalItem(STORAGE_KEYS.VEHICLES, [...existingVehicles, ...srlVehicles]);
-  }
+    const existingVehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
+    if (existingVehicles.length === 0) {
+      setLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
+    } else if (!existingVehicles.some(v => v.company_gstin === '33GWYPP4027A1ZD')) {
+      const srlVehicles = INITIAL_VEHICLES.filter(v => v.company_gstin === '33GWYPP4027A1ZD');
+      setLocalItem(STORAGE_KEYS.VEHICLES, [...existingVehicles, ...srlVehicles]);
+    }
 
-  const existingTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
-  if (existingTrips.length === 0) {
-    setLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
-  } else if (!existingTrips.some(t => t.company_gstin === '33GWYPP4027A1ZD')) {
-    const srlTrips = INITIAL_TRIPS.filter(t => t.company_gstin === '33GWYPP4027A1ZD');
-    setLocalItem(STORAGE_KEYS.TRIPS, [...existingTrips, ...srlTrips]);
-  }
+    const existingTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
+    if (existingTrips.length === 0) {
+      setLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    } else if (!existingTrips.some(t => t.company_gstin === '33GWYPP4027A1ZD')) {
+      const srlTrips = INITIAL_TRIPS.filter(t => t.company_gstin === '33GWYPP4027A1ZD');
+      setLocalItem(STORAGE_KEYS.TRIPS, [...existingTrips, ...srlTrips]);
+    }
 
-  const existingInvoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
-  if (existingInvoices.length < 10) {
-    const existingIds = new Set(existingInvoices.map(i => i.id));
-    const missing = INITIAL_INVOICES.filter(i => !existingIds.has(i.id));
-    setLocalItem(STORAGE_KEYS.INVOICES, [...existingInvoices, ...missing]);
-  } else if (!existingInvoices.some(i => i.company_gstin === '33GWYPP4027A1ZD')) {
-    const srlInvoices = INITIAL_INVOICES.filter(i => i.company_gstin === '33GWYPP4027A1ZD');
-    setLocalItem(STORAGE_KEYS.INVOICES, [...existingInvoices, ...srlInvoices]);
-  }
+    const existingInvoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
+    if (existingInvoices.length < 10) {
+      const existingIds = new Set(existingInvoices.map(i => i.id));
+      const missing = INITIAL_INVOICES.filter(i => !existingIds.has(i.id));
+      setLocalItem(STORAGE_KEYS.INVOICES, [...existingInvoices, ...missing]);
+    } else if (!existingInvoices.some(i => i.company_gstin === '33GWYPP4027A1ZD')) {
+      const srlInvoices = INITIAL_INVOICES.filter(i => i.company_gstin === '33GWYPP4027A1ZD');
+      setLocalItem(STORAGE_KEYS.INVOICES, [...existingInvoices, ...srlInvoices]);
+    }
 
-  const existingPayments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
-  if (existingPayments.length === 0) {
-    setLocalItem(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS);
-  } else if (!existingPayments.some(p => p.company_gstin === '33GWYPP4027A1ZD')) {
-    const srlPayments = INITIAL_PAYMENTS.filter(p => p.company_gstin === '33GWYPP4027A1ZD');
-    setLocalItem(STORAGE_KEYS.PAYMENTS, [...existingPayments, ...srlPayments]);
-  }
+    const existingPayments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
+    if (existingPayments.length === 0) {
+      setLocalItem(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS);
+    } else if (!existingPayments.some(p => p.company_gstin === '33GWYPP4027A1ZD')) {
+      const srlPayments = INITIAL_PAYMENTS.filter(p => p.company_gstin === '33GWYPP4027A1ZD');
+      setLocalItem(STORAGE_KEYS.PAYMENTS, [...existingPayments, ...srlPayments]);
+    }
 
-  const existingUsers = getLocalItem(STORAGE_KEYS.USERS, []);
-  if (existingUsers.length === 0) {
-    setLocalItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-  } else if (!existingUsers.some(u => u.operating_gstin === '33GWYPP4027A1ZD')) {
-    const srlUsers = INITIAL_USERS.filter(u => u.operating_gstin === '33GWYPP4027A1ZD');
-    setLocalItem(STORAGE_KEYS.USERS, [...existingUsers, ...srlUsers]);
+    const existingUsers = getLocalItem(STORAGE_KEYS.USERS, []);
+    if (existingUsers.length === 0) {
+      setLocalItem(STORAGE_KEYS.USERS, INITIAL_USERS);
+    } else if (!existingUsers.some(u => u.operating_gstin === '33GWYPP4027A1ZD')) {
+      const srlUsers = INITIAL_USERS.filter(u => u.operating_gstin === '33GWYPP4027A1ZD');
+      setLocalItem(STORAGE_KEYS.USERS, [...existingUsers, ...srlUsers]);
+    }
+  } else {
+    // When connected to Supabase database, purge any old mock demo data stored locally
+    // so only actual database records are shown
+    const storedTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
+    if (storedTrips.some(t => t.id && (String(t.id).startsWith('trip-') || String(t.id).startsWith('c0000000-0000-0000-0000-')))) {
+      setLocalItem(STORAGE_KEYS.TRIPS, []);
+    }
+    const storedInvoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
+    if (storedInvoices.some(i => i.id && (String(i.id).startsWith('inv-') || String(i.id).startsWith('d0000000-0000-0000-0000-')))) {
+      setLocalItem(STORAGE_KEYS.INVOICES, []);
+    }
+    const storedPayments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
+    if (storedPayments.some(p => p.id && (String(p.id).startsWith('pay-') || String(p.id).startsWith('e0000000-0000-0000-0000-')))) {
+      setLocalItem(STORAGE_KEYS.PAYMENTS, []);
+    }
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.COMPANY_ENTITIES)) {
@@ -1239,212 +1423,178 @@ export const db = {
 
   // CLIENTS
   async getClients() {
-    let supabaseClients = null;
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          supabaseClients = data.map(c => ({
+        if (!error && Array.isArray(data)) {
+          const clients = data.map(c => ({
             ...c,
             company_gstin: c.company_gstin || '33GUPS2382N1ZF',
           }));
+          setLocalItem(STORAGE_KEYS.CLIENTS, clients);
+          return clients;
         }
       } catch (e) {
         console.warn('Supabase getClients failed:', e);
       }
     }
-    const localClients = getLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-    if (supabaseClients && supabaseClients.length > 0) {
-      const unSynced = localClients.filter(lc => !supabaseClients.some(sc => sc.id === lc.id || (sc.name && sc.name.toLowerCase() === lc.name.toLowerCase())));
-      return [...supabaseClients, ...unSynced];
-    }
-    return localClients;
+    return getLocalItem(STORAGE_KEYS.CLIENTS, isSupabaseConfigured ? [] : INITIAL_CLIENTS);
   },
 
   async saveClient(clientData) {
     const activeEntity = this.getActiveCompany();
+    const cleanId = resolveClientId(clientData.id) || (isUuid(clientData.id) ? clientData.id : generateUuid());
     const payload = {
       ...clientData,
+      id: cleanId,
       company_gstin: clientData.company_gstin || activeEntity.gstin,
     };
-    let persistedId = clientData.id || ('cli-' + Date.now());
+    let persistedId = cleanId;
 
     if (isSupabaseConfigured) {
       try {
-        if (clientData.id) {
-          let { data, error } = await supabase.from('clients').update(payload).eq('id', clientData.id).select().single();
-          if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-            const { company_gstin: _cg, ...fallbackPayload } = payload;
-            const retry = await supabase.from('clients').update(fallbackPayload).eq('id', clientData.id).select().single();
-            if (!retry.error && retry.data) {
-              data = { ...retry.data, company_gstin: payload.company_gstin };
-              error = null;
-            }
-          }
-          if (!error && data) persistedId = data.id;
-        } else {
-          let { data, error } = await supabase.from('clients').insert([payload]).select().single();
-          if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-            const { company_gstin: _cg, ...fallbackPayload } = payload;
-            const retry = await supabase.from('clients').insert([fallbackPayload]).select().single();
-            if (!retry.error && retry.data) {
-              data = { ...retry.data, company_gstin: payload.company_gstin };
-              error = null;
-            }
-          }
-          if (!error && data) persistedId = data.id;
+        const { data, error } = await supabase.from('clients').upsert(payload, { onConflict: 'id' }).select().single();
+        if (!error && data) {
+          persistedId = data.id;
+        } else if (error) {
+          console.error('Supabase upsert client error:', error);
+          throw new Error('Failed to save client: ' + (error.message || JSON.stringify(error)));
         }
       } catch (err) {
-        console.warn('Supabase saveClient failed, saving to local storage:', err);
+        if (err.message && err.message.startsWith('Failed to save client')) throw err;
+        console.warn('Supabase saveClient network error, saving locally:', err.message);
       }
     }
 
-    const list = getLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
+    const list = getLocalItem(STORAGE_KEYS.CLIENTS, []);
     const finalClient = {
       ...payload,
       id: persistedId,
       created_at: payload.created_at || new Date().toISOString(),
     };
     if (clientData.id) {
-      const updated = list.map(c => c.id === clientData.id ? finalClient : c);
+      const updated = list.map(c => (c.id === clientData.id || c.id === persistedId) ? finalClient : c);
       setLocalItem(STORAGE_KEYS.CLIENTS, updated);
     } else {
-      setLocalItem(STORAGE_KEYS.CLIENTS, [finalClient, ...list]);
+      setLocalItem(STORAGE_KEYS.CLIENTS, [finalClient, ...list.filter(c => c.id !== persistedId)]);
     }
     return finalClient;
   },
 
   async deleteClient(id) {
+    const targetId = resolveClientId(id) || id;
     if (isSupabaseConfigured) {
-      await supabase.from('clients').delete().eq('id', id);
+      try {
+        await supabase.from('clients').delete().eq('id', targetId);
+      } catch (err) {
+        console.warn('Supabase deleteClient error:', err);
+      }
     }
-    const list = getLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-    setLocalItem(STORAGE_KEYS.CLIENTS, list.filter(c => c.id !== id));
+    const list = getLocalItem(STORAGE_KEYS.CLIENTS, []);
+    setLocalItem(STORAGE_KEYS.CLIENTS, list.filter(c => c.id !== id && c.id !== targetId));
     return true;
   },
 
   // VEHICLES
   async getVehicles() {
-    let supabaseVehicles = null;
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('vehicles').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          supabaseVehicles = data.map(v => ({
+        if (!error && Array.isArray(data)) {
+          const vehicles = data.map(v => ({
             ...v,
             company_gstin: v.company_gstin || '33GUPS2382N1ZF',
           }));
+          setLocalItem(STORAGE_KEYS.VEHICLES, vehicles);
+          return vehicles;
         }
       } catch (e) {
         console.warn('Supabase getVehicles failed:', e);
       }
     }
-    const localVehicles = getLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
-    if (supabaseVehicles && supabaseVehicles.length > 0) {
-      const unSynced = localVehicles.filter(lv => !supabaseVehicles.some(sv => sv.id === lv.id || (sv.vehicle_number && sv.vehicle_number === lv.vehicle_number)));
-      return [...supabaseVehicles, ...unSynced];
-    }
-    return localVehicles;
+    return getLocalItem(STORAGE_KEYS.VEHICLES, isSupabaseConfigured ? [] : INITIAL_VEHICLES);
   },
 
   async saveVehicle(vehicleData) {
     const activeEntity = this.getActiveCompany();
+    const cleanId = resolveVehicleId(vehicleData.id) || (isUuid(vehicleData.id) ? vehicleData.id : generateUuid());
     const payload = {
       ...vehicleData,
+      id: cleanId,
       company_gstin: vehicleData.company_gstin || activeEntity.gstin,
     };
-    let persistedId = vehicleData.id || ('veh-' + Date.now());
+    let persistedId = cleanId;
 
     if (isSupabaseConfigured) {
       try {
-        if (vehicleData.id) {
-          let { data, error } = await supabase.from('vehicles').update(payload).eq('id', vehicleData.id).select().single();
-          if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-            const { company_gstin: _cg, ...fallbackPayload } = payload;
-            const retry = await supabase.from('vehicles').update(fallbackPayload).eq('id', vehicleData.id).select().single();
-            if (!retry.error && retry.data) {
-              data = { ...retry.data, company_gstin: payload.company_gstin };
-              error = null;
-            }
-          }
-          if (!error && data) persistedId = data.id;
-        } else {
-          let { data, error } = await supabase.from('vehicles').insert([payload]).select().single();
-          if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-            const { company_gstin: _cg, ...fallbackPayload } = payload;
-            const retry = await supabase.from('vehicles').insert([fallbackPayload]).select().single();
-            if (!retry.error && retry.data) {
-              data = { ...retry.data, company_gstin: payload.company_gstin };
-              error = null;
-            }
-          }
-          if (!error && data) persistedId = data.id;
+        const { data, error } = await supabase.from('vehicles').upsert(payload, { onConflict: 'id' }).select().single();
+        if (!error && data) {
+          persistedId = data.id;
+        } else if (error) {
+          console.error('Supabase upsert vehicle error:', error);
+          throw new Error('Failed to save vehicle: ' + (error.message || JSON.stringify(error)));
         }
       } catch (err) {
-        console.warn('Supabase saveVehicle failed, saving to local storage:', err);
+        if (err.message && err.message.startsWith('Failed to save vehicle')) throw err;
+        console.warn('Supabase saveVehicle network error, saving locally:', err.message);
       }
     }
 
-    const list = getLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
+    const list = getLocalItem(STORAGE_KEYS.VEHICLES, []);
     const finalVehicle = {
       ...payload,
       id: persistedId,
       created_at: payload.created_at || new Date().toISOString(),
     };
     if (vehicleData.id) {
-      const updated = list.map(v => v.id === vehicleData.id ? finalVehicle : v);
+      const updated = list.map(v => (v.id === vehicleData.id || v.id === persistedId) ? finalVehicle : v);
       setLocalItem(STORAGE_KEYS.VEHICLES, updated);
     } else {
-      setLocalItem(STORAGE_KEYS.VEHICLES, [finalVehicle, ...list]);
+      setLocalItem(STORAGE_KEYS.VEHICLES, [finalVehicle, ...list.filter(v => v.id !== persistedId)]);
     }
     return finalVehicle;
   },
 
   async deleteVehicle(id) {
+    const targetId = resolveVehicleId(id) || id;
     if (isSupabaseConfigured) {
-      await supabase.from('vehicles').delete().eq('id', id);
+      try {
+        await supabase.from('vehicles').delete().eq('id', targetId);
+      } catch (err) {
+        console.warn('Supabase deleteVehicle error:', err);
+      }
     }
-    const list = getLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
-    setLocalItem(STORAGE_KEYS.VEHICLES, list.filter(v => v.id !== id));
+    const list = getLocalItem(STORAGE_KEYS.VEHICLES, []);
+    setLocalItem(STORAGE_KEYS.VEHICLES, list.filter(v => v.id !== id && v.id !== targetId));
     return true;
   },
 
   // TRIPS
   async getTrips() {
-    let supabaseTrips = null;
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('trips').select('*, vehicles(*), clients(*)').order('loading_date', { ascending: false });
-        if (!error && data) {
-          supabaseTrips = data.map(t => ({
+        if (!error && Array.isArray(data)) {
+          const mappedTrips = data.map(t => ({
             ...t,
             company_gstin: t.company_gstin || '33GUPS2382N1ZF',
             company_name: t.company_name || (t.company_gstin === '33GWYPP4027A1ZD' ? 'Sri Ram Logistics' : 'Sri Ram Transport'),
             profit: t.profit !== undefined ? t.profit : calculateProfit(t.freight_amount, t.vehicle_freight),
+            client: t.client || t.clients || null,
+            vehicle: t.vehicle || t.vehicles || null,
           }));
+          setLocalItem(STORAGE_KEYS.TRIPS, mappedTrips);
+          return mappedTrips;
         }
       } catch (e) {
         console.warn('Supabase getTrips failed, using local storage fallback:', e);
       }
     }
 
-    const localTrips = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
-    const clients = getLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-    const vehicles = getLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
+    const localTrips = getLocalItem(STORAGE_KEYS.TRIPS, isSupabaseConfigured ? [] : INITIAL_TRIPS);
+    const clients = getLocalItem(STORAGE_KEYS.CLIENTS, []);
+    const vehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
 
-    // If Supabase returned trips, merge with any local trips not yet in Supabase
-    if (supabaseTrips && supabaseTrips.length > 0) {
-      const unSynced = localTrips.filter(lt => !supabaseTrips.some(st => st.id === lt.id || (st.load_id && st.load_id === lt.load_id)));
-      const combined = [...supabaseTrips, ...unSynced];
-      return combined.map(t => ({
-        ...t,
-        profit: calculateProfit(t.freight_amount, t.vehicle_freight),
-        client: t.client || t.clients || clients.find(c => c.id === t.client_id) || null,
-        vehicle: t.vehicle || t.vehicles || vehicles.find(v => v.id === t.vehicle_id) || null,
-      }));
-    }
-
-    // Return local storage trips
     return localTrips.map(t => ({
       ...t,
       profit: calculateProfit(t.freight_amount, t.vehicle_freight),
@@ -1456,8 +1606,18 @@ export const db = {
   async saveTrip(tripData) {
     const activeEntity = this.getActiveCompany();
     const profit = calculateProfit(tripData.freight_amount, tripData.vehicle_freight);
+    const validId = resolveTripId(tripData.id) || (isUuid(tripData.id) ? tripData.id : generateUuid());
+    // Resolve IDs: use original value as fallback if resolve returns null (handles real Supabase UUIDs)
+    const validClientId = resolveClientId(tripData.client_id) || (isUuid(tripData.client_id) ? tripData.client_id : null);
+    const validVehicleId = resolveVehicleId(tripData.vehicle_id) || (isUuid(tripData.vehicle_id) ? tripData.vehicle_id : null);
+    const validInvoiceId = resolveInvoiceId(tripData.invoice_id) || (isUuid(tripData.invoice_id) ? tripData.invoice_id : null);
+
     const payload = {
       ...tripData,
+      id: validId,
+      client_id: validClientId,
+      vehicle_id: validVehicleId,
+      invoice_id: validInvoiceId,
       company_gstin: tripData.company_gstin || activeEntity.gstin,
       company_name: tripData.company_name || activeEntity.company_name,
       freight_amount: parseFloat(tripData.freight_amount) || 0,
@@ -1466,48 +1626,25 @@ export const db = {
       status: tripData.status || 'booked',
     };
 
-    let persistedId = tripData.id || ('trip-' + Date.now());
+    let persistedId = validId;
 
     if (isSupabaseConfigured) {
       try {
-        const { profit: _omit, vehicle: _v, client: _c, ...supabasePayload } = payload;
-
-        if (tripData.id) {
-          let { data, error } = await supabase.from('trips').update(supabasePayload).eq('id', tripData.id).select().single();
-          if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-            console.warn('Trips table missing company_gstin column, retrying update without it');
-            const { company_gstin: _cg, company_name: _cn, ...fallbackPayload } = supabasePayload;
-            const retry = await supabase.from('trips').update(fallbackPayload).eq('id', tripData.id).select().single();
-            if (!retry.error && retry.data) {
-              data = { ...retry.data, company_gstin: payload.company_gstin, company_name: payload.company_name };
-              error = null;
-            }
-          }
-          if (!error && data) {
-            persistedId = data.id;
-          }
-        } else {
-          let { data, error } = await supabase.from('trips').insert([supabasePayload]).select().single();
-          if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-            console.warn('Trips table missing company_gstin column, retrying insert without it');
-            const { company_gstin: _cg, company_name: _cn, ...fallbackPayload } = supabasePayload;
-            const retry = await supabase.from('trips').insert([fallbackPayload]).select().single();
-            if (!retry.error && retry.data) {
-              data = { ...retry.data, company_gstin: payload.company_gstin, company_name: payload.company_name };
-              error = null;
-            }
-          }
-          if (!error && data) {
-            persistedId = data.id;
-          }
+        const { profit: _omit, vehicle: _v, client: _c, vehicle_rate: _vr, lr_status: _ls, ...supabasePayload } = payload;
+        const { data, error } = await supabase.from('trips').upsert(supabasePayload, { onConflict: 'id' }).select().single();
+        if (!error && data) {
+          persistedId = data.id;
+        } else if (error) {
+          console.error('Supabase upsert trip error:', error);
+          throw new Error('Failed to save trip to database: ' + (error.message || JSON.stringify(error)));
         }
       } catch (err) {
-        console.warn('Supabase saveTrip failed, continuing with local storage:', err);
+        if (err.message && err.message.startsWith('Failed to save trip')) throw err;
+        console.warn('Supabase saveTrip network error, saving locally:', err.message);
       }
     }
 
-    // Always keep Local Storage fully synchronized with active entity GSTIN
-    const list = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
     const finalTrip = {
       ...payload,
       id: persistedId,
@@ -1517,10 +1654,10 @@ export const db = {
     };
 
     if (tripData.id) {
-      const updated = list.map(t => t.id === tripData.id ? finalTrip : t);
+      const updated = list.map(t => (t.id === tripData.id || t.id === persistedId) ? finalTrip : t);
       setLocalItem(STORAGE_KEYS.TRIPS, updated);
     } else {
-      setLocalItem(STORAGE_KEYS.TRIPS, [finalTrip, ...list]);
+      setLocalItem(STORAGE_KEYS.TRIPS, [finalTrip, ...list.filter(t => t.id !== persistedId)]);
     }
     return finalTrip;
   },
@@ -1532,15 +1669,24 @@ export const db = {
     }
 
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.from('trips').update({
-        status: 'completed',
-        lr_number,
-        lr_file_url
-      }).eq('id', tripId).select().single();
-      if (!error && data) return data;
+      try {
+        const { data, error } = await supabase.from('trips').update({
+          status: 'completed',
+          lr_number,
+          lr_file_url
+        }).eq('id', tripId).select().single();
+        if (!error && data) {
+          const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
+          const updated = list.map(t => t.id === tripId ? { ...t, ...data } : t);
+          setLocalItem(STORAGE_KEYS.TRIPS, updated);
+          return data;
+        }
+      } catch (e) {
+        console.warn('Supabase completeTripWithLR error:', e);
+      }
     }
 
-    const list = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
     const updated = list.map(t => {
       if (t.id === tripId) {
         return {
@@ -1562,11 +1708,20 @@ export const db = {
     }
 
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.from('trips').update({ status: newStatus }).eq('id', tripId).select().single();
-      if (!error && data) return data;
+      try {
+        const { data, error } = await supabase.from('trips').update({ status: newStatus }).eq('id', tripId).select().single();
+        if (!error && data) {
+          const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
+          const updated = list.map(t => t.id === tripId ? { ...t, ...data } : t);
+          setLocalItem(STORAGE_KEYS.TRIPS, updated);
+          return data;
+        }
+      } catch (e) {
+        console.warn('Supabase updateTripStatus error:', e);
+      }
     }
 
-    const list = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
     const updated = list.map(t => t.id === tripId ? { ...t, status: newStatus } : t);
     setLocalItem(STORAGE_KEYS.TRIPS, updated);
     return updated.find(t => t.id === tripId);
@@ -1574,10 +1729,18 @@ export const db = {
 
   async deleteTrip(id) {
     if (isSupabaseConfigured) {
-      await supabase.from('trips').delete().eq('id', id);
+      try {
+        // Delete related payments first to prevent foreign key violation
+        await supabase.from('payments').delete().eq('trip_id', id);
+        await supabase.from('trips').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Supabase deleteTrip error:', err);
+      }
     }
-    const list = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
     setLocalItem(STORAGE_KEYS.TRIPS, list.filter(t => t.id !== id));
+    const payments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
+    setLocalItem(STORAGE_KEYS.PAYMENTS, payments.filter(p => p.trip_id !== id));
     return true;
   },
 
@@ -1624,13 +1787,25 @@ export const db = {
   // INVOICES
   async getInvoices() {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.from('invoices').select('*, clients(*)').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) return data;
+      try {
+        const { data, error } = await supabase.from('invoices').select('*, clients(*)').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data)) {
+          const invoices = data.map(inv => ({
+            ...inv,
+            client: inv.client || inv.clients || null,
+            trips: inv.trips || []
+          }));
+          setLocalItem(STORAGE_KEYS.INVOICES, invoices);
+          return invoices;
+        }
+      } catch (e) {
+        console.warn('Supabase getInvoices failed:', e);
+      }
     }
-    const invoices = getLocalItem(STORAGE_KEYS.INVOICES, INITIAL_INVOICES);
-    const clients = getLocalItem(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-    const trips = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
-    const vehicles = getLocalItem(STORAGE_KEYS.VEHICLES, INITIAL_VEHICLES);
+    const invoices = getLocalItem(STORAGE_KEYS.INVOICES, isSupabaseConfigured ? [] : INITIAL_INVOICES);
+    const clients = getLocalItem(STORAGE_KEYS.CLIENTS, []);
+    const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
+    const vehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
 
     return invoices.map(inv => ({
       ...inv,
@@ -1659,10 +1834,13 @@ export const db = {
     const gstAmount = Math.round((subTotal * gstPercent / 100) * 100) / 100;
     const netAmount = subTotal; // Reverse charge: client pays GST separately, net amount billed is subTotal
 
+    const cleanClientId = resolveClientId(clientId) || (isUuid(clientId) ? clientId : null);
+    const validInvoiceId = generateUuid();
+
     const newInvoice = {
-      id: 'inv-' + Date.now(),
+      id: validInvoiceId,
       invoice_number: invoiceNumber,
-      client_id: clientId,
+      client_id: cleanClientId,
       company_gstin: effectiveGstin,
       company_name: effectiveName,
       invoice_date: invoiceDate || new Date().toISOString().split('T')[0],
@@ -1689,8 +1867,10 @@ export const db = {
         }
         if (!error && createdInv) {
           newInvoice.id = createdInv.id;
-          // Update trips in Supabase
-          await supabase.from('trips').update({ invoiced: true, invoice_id: createdInv.id }).in('id', tripIds);
+          const validTripIds = tripIds.map(tId => resolveTripId(tId) || tId).filter(isUuid);
+          if (validTripIds.length > 0) {
+            await supabase.from('trips').update({ invoiced: true, invoice_id: createdInv.id }).in('id', validTripIds);
+          }
         }
       } catch (err) {
         console.warn('Supabase generateInvoice failed, saving to local storage:', err);
@@ -1701,7 +1881,7 @@ export const db = {
     const invoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
     setLocalItem(STORAGE_KEYS.INVOICES, [newInvoice, ...invoices]);
 
-    const trips = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
     const updatedTrips = trips.map(t => {
       if (tripIds.includes(t.id)) {
         return { ...t, invoiced: true, invoice_id: newInvoice.id };
@@ -1711,6 +1891,26 @@ export const db = {
     setLocalItem(STORAGE_KEYS.TRIPS, updatedTrips);
 
     return newInvoice;
+  },
+
+  async deleteInvoice(id) {
+    if (isSupabaseConfigured) {
+      try {
+        // Unlink associated trips
+        await supabase.from('trips').update({ invoiced: false, invoice_id: null }).eq('invoice_id', id);
+        // Delete associated payments
+        await supabase.from('payments').delete().eq('invoice_id', id);
+        // Delete the invoice itself
+        await supabase.from('invoices').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Supabase deleteInvoice error:', err);
+      }
+    }
+    const invoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
+    setLocalItem(STORAGE_KEYS.INVOICES, invoices.filter(i => i.id !== id));
+    const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
+    setLocalItem(STORAGE_KEYS.TRIPS, trips.map(t => t.invoice_id === id ? { ...t, invoiced: false, invoice_id: null } : t));
+    return true;
   },
 
   // DIRECT INVOICE ENTRY (Bypasses Booked/In-Transit, goes directly to Completed & Payments)
@@ -1733,7 +1933,8 @@ export const db = {
     const effectiveName = company_name || activeEntity.company_name;
     const now = new Date().toISOString();
     const invDate = invoice_date || now.split('T')[0];
-    const generatedInvoiceId = 'inv-' + Date.now();
+    const generatedInvoiceId = generateUuid();
+    const cleanClientId = resolveClientId(client_id) || (isUuid(client_id) ? client_id : null);
 
     // 1. Calculate subtotal
     const subTotal = inputTrips.reduce((sum, t) => sum + (parseFloat(t.freight_amount) || 0), 0);
@@ -1744,7 +1945,7 @@ export const db = {
     const newInvoice = {
       id: generatedInvoiceId,
       invoice_number: invoice_number.trim(),
-      client_id,
+      client_id: cleanClientId,
       company_gstin: effectiveGstin,
       company_name: effectiveName,
       invoice_date: invDate,
@@ -1763,7 +1964,7 @@ export const db = {
       const freightAmt = parseFloat(t.freight_amount) || 0;
       const vehicleAmt = parseFloat(t.vehicle_freight) || 0;
       const profit = calculateProfit(freightAmt, vehicleAmt);
-      const tripId = t.id || ('trip-dir-' + Date.now() + '-' + idx);
+      const tripId = generateUuid();
       const loadId = t.load_id || ('220' + Math.floor(10000 + Math.random() * 90000));
       const lrNumber = t.lr_number || ('LR-DIR-' + loadId);
 
@@ -1773,7 +1974,8 @@ export const db = {
         load_id: loadId,
         lr_number: lrNumber,
         loading_date: t.loading_date || invDate,
-        client_id,
+        client_id: cleanClientId,
+        vehicle_id: resolveVehicleId(t.vehicle_id) || (isUuid(t.vehicle_id) ? t.vehicle_id : null),
         company_gstin: effectiveGstin,
         company_name: effectiveName,
         status: 'completed', // Bypasses booked and in_transit directly!
@@ -1799,12 +2001,9 @@ export const db = {
       try {
         const { gst_amount: _g, net_amount: _n, ...supabaseInvPayload } = newInvoice;
         let { data: supInv, error: invErr } = await supabase.from('invoices').insert([supabaseInvPayload]).select().single();
-        if (invErr && (invErr.message.includes('is_direct') || invErr.message.includes('column'))) {
-          const { is_direct: _id, ...fallbackInv } = supabaseInvPayload;
-          const retry = await supabase.from('invoices').insert([fallbackInv]).select().single();
-          if (!retry.error && retry.data) {
-            supInv = retry.data;
-          }
+        if (invErr) {
+          console.error('Supabase saveDirectInvoiceEntry invoice error:', invErr);
+          throw new Error('Failed to save direct invoice: ' + (invErr.message || JSON.stringify(invErr)));
         }
 
         const effectiveDbInvoiceId = supInv?.id || generatedInvoiceId;
@@ -1812,20 +2011,17 @@ export const db = {
 
         for (const tr of createdTrips) {
           tr.invoice_id = effectiveDbInvoiceId;
-          const { profit: _p, payment_status: _ps, total_paid_amount: _tpa, advance_paid: _ap, balance_amount: _ba, ...supTripPayload } = tr;
+          const { profit: _p, payment_status: _ps, total_paid_amount: _tpa, advance_paid: _ap, balance_amount: _ba, vehicle: _vh, client: _cl, vehicle_rate: _vr, lr_status: _ls, ...supTripPayload } = tr;
           let { data: supTrip, error: tripErr } = await supabase.from('trips').insert([supTripPayload]).select().single();
-          if (tripErr && (tripErr.message.includes('entry_type') || tripErr.message.includes('is_direct') || tripErr.message.includes('column'))) {
-            const { entry_type: _et, is_direct_invoice: _idi, direct_invoice_number: _din, ...fallbackTrip } = supTripPayload;
-            const retryTrip = await supabase.from('trips').insert([fallbackTrip]).select().single();
-            if (!retryTrip.error && retryTrip.data) {
-              tr.id = retryTrip.data.id;
-            }
-          } else if (!tripErr && supTrip) {
+          if (tripErr) {
+            console.error('Supabase saveDirectInvoiceEntry trip error:', tripErr);
+          } else if (supTrip) {
             tr.id = supTrip.id;
           }
         }
       } catch (err) {
-        console.warn('Supabase saveDirectInvoiceEntry failed, continuing with local storage:', err);
+        if (err.message && err.message.startsWith('Failed to save direct invoice')) throw err;
+        console.warn('Supabase saveDirectInvoiceEntry network error, continuing with local storage:', err.message);
       }
     }
 
@@ -1833,7 +2029,7 @@ export const db = {
     const existingInvoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
     setLocalItem(STORAGE_KEYS.INVOICES, [newInvoice, ...existingInvoices]);
 
-    const existingTrips = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+    const existingTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
     setLocalItem(STORAGE_KEYS.TRIPS, [...createdTrips, ...existingTrips]);
 
     return {
@@ -1844,36 +2040,40 @@ export const db = {
 
   // PAYMENTS & SETTLEMENTS
   async getPayments() {
-    let supabasePayments = null;
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
           .from('payments')
           .select('*')
           .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          supabasePayments = data.map(p => ({
+        if (!error && Array.isArray(data)) {
+          const payments = data.map(p => ({
             ...p,
             company_gstin: p.company_gstin || '33GUPS2382N1ZF',
           }));
+          setLocalItem(STORAGE_KEYS.PAYMENTS, payments);
+          return payments;
         }
       } catch (e) {
         console.warn('Supabase getPayments failed:', e);
       }
     }
-    const localPayments = getLocalItem(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS);
-    if (supabasePayments && supabasePayments.length > 0) {
-      const unSynced = localPayments.filter(lp => !supabasePayments.some(sp => sp.id === lp.id));
-      return [...supabasePayments, ...unSynced];
-    }
-    return localPayments;
+    return getLocalItem(STORAGE_KEYS.PAYMENTS, isSupabaseConfigured ? [] : INITIAL_PAYMENTS);
   },
 
   async savePayment(paymentData) {
     const activeEntity = this.getActiveCompany();
+    const validPayId = resolvePaymentId(paymentData.id) || (isUuid(paymentData.id) ? paymentData.id : generateUuid());
+    const validTripId = resolveTripId(paymentData.trip_id) || (isUuid(paymentData.trip_id) ? paymentData.trip_id : null);
+    const validClientId = resolveClientId(paymentData.client_id) || (isUuid(paymentData.client_id) ? paymentData.client_id : null);
+    const validInvoiceId = resolveInvoiceId(paymentData.invoice_id) || (isUuid(paymentData.invoice_id) ? paymentData.invoice_id : null);
+
     const payload = {
       ...paymentData,
-      id: paymentData.id || ('pay-' + Date.now()),
+      id: validPayId,
+      trip_id: validTripId,
+      client_id: validClientId,
+      invoice_id: validInvoiceId,
       company_gstin: paymentData.company_gstin || activeEntity.gstin,
       company_name: paymentData.company_name || activeEntity.company_name,
       amount: parseFloat(paymentData.amount) || 0,
@@ -1888,15 +2088,16 @@ export const db = {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('payments').insert([payload]);
+        const { client_name: _cn, client: _c, trip: _t, ...supPaymentPayload } = payload;
+        await supabase.from('payments').upsert(supPaymentPayload, { onConflict: 'id' });
       } catch (err) {
         console.warn('Supabase savePayment failed, continuing with local storage:', err);
       }
     }
 
     // Synchronize localStorage payments
-    const payments = getLocalItem(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS);
-    const updatedPayments = [payload, ...payments];
+    const payments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
+    const updatedPayments = [payload, ...payments.filter(p => p.id !== payload.id)];
     setLocalItem(STORAGE_KEYS.PAYMENTS, updatedPayments);
 
     // Update associated trip's payment status, total_paid_amount, balance_amount
@@ -1905,7 +2106,7 @@ export const db = {
       const totalPaid = allTripPayments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
       const totalAdvance = allTripPayments.filter(p => p.payment_type === 'advance').reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
 
-      const trips = getLocalItem(STORAGE_KEYS.TRIPS, INITIAL_TRIPS);
+      const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
       const targetTrip = trips.find(t => t.id === payload.trip_id);
       const freightAmount = targetTrip ? (parseFloat(targetTrip.freight_amount) || 0) : (parseFloat(payload.total_freight) || 0);
       const balance = Math.max(0, freightAmount - totalPaid);
@@ -1933,14 +2134,14 @@ export const db = {
       });
       setLocalItem(STORAGE_KEYS.TRIPS, updatedTrips);
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && validTripId) {
         try {
           await supabase.from('trips').update({
             payment_status: finalStatus,
             advance_paid: totalAdvance,
             total_paid_amount: totalPaid,
             balance_amount: balance,
-          }).eq('id', payload.trip_id);
+          }).eq('id', validTripId);
         } catch (e) {
           // Ignore if columns missing in Supabase before migration
         }
@@ -1948,6 +2149,73 @@ export const db = {
     }
 
     return payload;
+  },
+
+  async deletePayment(id) {
+    let paymentToDelete = null;
+    const payments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
+    paymentToDelete = payments.find(p => p.id === id);
+
+    if (isSupabaseConfigured) {
+      try {
+        if (!paymentToDelete) {
+          const { data } = await supabase.from('payments').select('*').eq('id', id).single();
+          paymentToDelete = data;
+        }
+        await supabase.from('payments').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Supabase deletePayment error:', err);
+      }
+    }
+
+    const updatedPayments = payments.filter(p => p.id !== id);
+    setLocalItem(STORAGE_KEYS.PAYMENTS, updatedPayments);
+
+    const tripId = paymentToDelete?.trip_id;
+    if (tripId) {
+      const allTripPayments = updatedPayments.filter(p => p.trip_id === tripId);
+      const totalPaid = allTripPayments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
+      const totalAdvance = allTripPayments.filter(p => p.payment_type === 'advance').reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
+
+      const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
+      const targetTrip = trips.find(t => t.id === tripId);
+      const freightAmount = targetTrip ? (parseFloat(targetTrip.freight_amount) || 0) : 0;
+      const balance = Math.max(0, freightAmount - totalPaid);
+
+      let finalStatus = 'pending';
+      if (totalPaid > 0) {
+        if (balance <= 0) finalStatus = 'full_payment';
+        else if (totalPaid >= freightAmount * 0.45) finalStatus = 'half_payment';
+        else finalStatus = 'advance';
+      }
+
+      const updatedTrips = trips.map(t => {
+        if (t.id === tripId) {
+          return {
+            ...t,
+            payment_status: finalStatus,
+            advance_paid: totalAdvance,
+            total_paid_amount: totalPaid,
+            balance_amount: balance,
+          };
+        }
+        return t;
+      });
+      setLocalItem(STORAGE_KEYS.TRIPS, updatedTrips);
+
+      if (isSupabaseConfigured && isUuid(tripId)) {
+        try {
+          await supabase.from('trips').update({
+            payment_status: finalStatus,
+            advance_paid: totalAdvance,
+            total_paid_amount: totalPaid,
+            balance_amount: balance,
+          }).eq('id', tripId);
+        } catch (e) {}
+      }
+    }
+
+    return true;
   },
 
   async getTripPayments(tripId) {
@@ -2240,10 +2508,7 @@ export const db = {
           password: local?.password || 'Staff@123'
         };
       });
-      const unSynced = localUsers.filter(lu => 
-        !merged.some(m => m.id === lu.id || (m.email && lu.email && m.email.toLowerCase() === lu.email.toLowerCase()) || (m.username && lu.username && m.username.toLowerCase() === lu.username.toLowerCase()))
-      );
-      const finalList = [...merged, ...unSynced];
+      const finalList = merged;
       setLocalItem(STORAGE_KEYS.USERS, finalList);
       return finalList;
     }

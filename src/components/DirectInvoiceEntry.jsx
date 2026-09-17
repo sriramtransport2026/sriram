@@ -24,6 +24,12 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { calculateProfit, db } from '../services/db';
+import { INDIAN_STATES } from '../utils/indianStates';
+import { 
+  cleanPhone, isValidPhone, 
+  cleanGSTIN, isValidGSTIN, extractPanFromGSTIN, 
+  cleanPAN, isValidPAN 
+} from '../utils/validation';
 import logoImg from '../assets/logo.png';
 import { InvoicePrintModal } from './InvoicePrintModal';
 
@@ -39,12 +45,12 @@ export function DirectInvoiceEntry({
   onQuickAddVehicle,
   onQuickAddClient,
 }) {
-  const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id || '');
+  const [selectedClientId, setSelectedClientId] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [defaultFromLocation, setDefaultFromLocation] = useState('BANGALORE, Jigani');
+  const [defaultFromLocation, setDefaultFromLocation] = useState('');
   const [defaultToLocation, setDefaultToLocation] = useState('');
-  const [consignor, setConsignor] = useState('Ashirvad Pipes Pvt Ltd');
+  const [consignor, setConsignor] = useState('');
   const [consignee, setConsignee] = useState('');
   const [gstPercent, setGstPercent] = useState(companySettings?.default_gst_percent || 5.0);
   const [notes, setNotes] = useState('Direct Multi-Trip Consignment Invoice');
@@ -55,7 +61,7 @@ export function DirectInvoiceEntry({
   const [activeVehicleTripIndex, setActiveVehicleTripIndex] = useState(null);
 
   const [showClientModal, setShowClientModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', gstin: '', state: 'KARNATAKA', address: '', phone: '' });
+  const [newClient, setNewClient] = useState({ name: '', gstin: '', pan: '', state: 'Tamil Nadu', address: '', phone: '' });
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,7 +85,9 @@ export function DirectInvoiceEntry({
 
   useEffect(() => {
     if (selectedClient) {
-      setConsignor(selectedClient.name || 'Ashirvad Pipes Pvt Ltd');
+      setConsignor(selectedClient.name || '');
+    } else {
+      setConsignor('');
     }
   }, [selectedClient]);
 
@@ -89,9 +97,9 @@ export function DirectInvoiceEntry({
     load_id: '220' + Math.floor(10000 + Math.random() * 90000),
     lr_number: '',
     loading_date: invoiceDate,
-    vehicle_id: vehicles[0]?.id || '',
-    from_location: defaultFromLocation,
-    to_location: defaultToLocation,
+    vehicle_id: '',
+    from_location: defaultFromLocation || '',
+    to_location: defaultToLocation || '',
     packages: '',
     description: '',
     unit_type: 'MT', // 'MT' | 'kg' | 'boxes' | 'bags' | 'custom'
@@ -182,8 +190,18 @@ export function DirectInvoiceEntry({
   const handleCreateVehicle = async (e) => {
     e.preventDefault();
     if (!newVehicle.vehicle_number.trim()) return;
+
+    if (newVehicle.owner_phone && !isValidPhone(newVehicle.owner_phone)) {
+      alert("Owner Phone must be strictly 10 digits. (Currently: " + cleanPhone(newVehicle.owner_phone).length + " digits)");
+      return;
+    }
+
     try {
-      const saved = await onQuickAddVehicle(newVehicle);
+      const saved = await onQuickAddVehicle({
+        ...newVehicle,
+        owner_phone: cleanPhone(newVehicle.owner_phone),
+        vehicle_number: newVehicle.vehicle_number.trim().toUpperCase()
+      });
       if (activeVehicleTripIndex !== null) {
         handleUpdateTripRow(activeVehicleTripIndex, 'vehicle_id', saved.id);
       }
@@ -198,11 +216,35 @@ export function DirectInvoiceEntry({
   const handleCreateClient = async (e) => {
     e.preventDefault();
     if (!newClient.name.trim()) return;
+
+    if (newClient.phone && !isValidPhone(newClient.phone)) {
+      alert("Client Contact Phone must be strictly 10 digits. (Currently: " + cleanPhone(newClient.phone).length + " digits)");
+      return;
+    }
+
+    if (newClient.gstin && !isValidGSTIN(newClient.gstin)) {
+      alert("Invalid GSTIN format. GSTIN must be 15 alphanumeric characters (e.g. 29AABCA7061K1ZH).");
+      return;
+    }
+
+    if (newClient.pan && !isValidPAN(newClient.pan)) {
+      alert("Invalid PAN format. PAN must be 10 characters (e.g. AABCA7061K).");
+      return;
+    }
+
     try {
-      const saved = await onQuickAddClient(newClient);
-      setSelectedClientId(saved.id);
+      const saved = await onQuickAddClient({
+        ...newClient,
+        phone: cleanPhone(newClient.phone),
+        gstin: cleanGSTIN(newClient.gstin),
+        pan: cleanPAN(newClient.pan),
+      });
+      if (saved && saved.id) {
+        setSelectedClientId(saved.id);
+        setConsignor(saved.name || '');
+      }
       setShowClientModal(false);
-      setNewClient({ name: '', gstin: '', state: 'KARNATAKA', address: '', phone: '' });
+      setNewClient({ name: '', gstin: '', pan: '', state: 'TAMIL NADU', address: '', phone: '' });
     } catch (err) {
       console.error(err);
     }
@@ -377,33 +419,60 @@ export function DirectInvoiceEntry({
             {/* Client Selector */}
             <div className="space-y-1.5 md:col-span-2">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-700">Client / Consignor *</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Client (Consignee Billed) <span className="text-rose-500">*</span>
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowClientModal(true)}
-                  className="text-[11px] font-bold text-brand-navy hover:underline flex items-center space-x-1"
+                  className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 px-2.5 py-0.5 rounded-lg border border-emerald-200 shadow-xs transition cursor-pointer"
+                  title="Add New Client"
                 >
-                  <Plus className="w-3 h-3" />
-                  <span>New Client</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Add Client</span>
                 </button>
               </div>
               <select
                 value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === '__add_new__') {
+                    setShowClientModal(true);
+                    return;
+                  }
+                  setSelectedClientId(e.target.value);
+                }}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-bold text-slate-900 focus:bg-white focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10 transition"
               >
+                <option value="">-- Select Client --</option>
+                <option value="__add_new__" className="font-bold text-emerald-700 bg-emerald-50">
+                  ➕ + Add New Client...
+                </option>
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name} {c.gstin ? `(${c.gstin})` : ''}
                   </option>
                 ))}
               </select>
-              {selectedClient && (
+              {selectedClient ? (
                 <div className="text-[11px] text-slate-500 flex items-center space-x-2 pt-0.5">
                   <span className="font-semibold text-slate-700">GSTIN: {selectedClient.gstin || 'Unregistered'}</span>
                   <span>·</span>
                   <span className="truncate">{selectedClient.address || selectedClient.state || 'Karnataka'}</span>
                 </div>
+              ) : (
+                clients.length === 0 && (
+                  <p className="text-[11px] text-amber-600 font-medium pt-0.5 flex items-center space-x-1">
+                    <span>⚠️ No clients registered. Click</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowClientModal(true)}
+                      className="font-bold underline text-amber-800 hover:text-amber-900 cursor-pointer"
+                    >
+                      + Add Client
+                    </button>
+                    <span>to create one.</span>
+                  </p>
+                )
               )}
             </div>
 
@@ -938,6 +1007,27 @@ export function DirectInvoiceEntry({
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200"
                 />
               </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-700">Owner Phone (10 Digits)</label>
+                  <span className={"text-[10px] font-mono font-bold " + (newVehicle.owner_phone.length === 10 ? "text-emerald-600" : "text-slate-400")}>
+                    {newVehicle.owner_phone.length}/10
+                  </span>
+                </div>
+                <input
+                  type="tel"
+                  maxLength={10}
+                  placeholder="e.g. 9845012345"
+                  value={newVehicle.owner_phone}
+                  onChange={(e) => setNewVehicle(prev => ({ ...prev, owner_phone: cleanPhone(e.target.value) }))}
+                  className={"w-full px-3 py-2 rounded-xl bg-slate-50 border text-xs font-mono " + (newVehicle.owner_phone && newVehicle.owner_phone.length === 10 ? "border-emerald-400" : "border-slate-200")}
+                />
+                {newVehicle.owner_phone && (
+                  <p className={"text-[10px] mt-0.5 font-medium " + (newVehicle.owner_phone.length === 10 ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                    {newVehicle.owner_phone.length === 10 ? "✓ 10-Digit Mobile Number" : "Must be strictly 10 digits"}
+                  </p>
+                )}
+              </div>
               <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
@@ -963,60 +1053,134 @@ export function DirectInvoiceEntry({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm">Quick Add Client</h3>
+              <h3 className="font-bold text-slate-900 text-base font-display">Add New Client (Consignee Billed)</h3>
               <button
                 type="button"
                 onClick={() => setShowClientModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold p-1"
               >
                 ✕
               </button>
             </div>
-            <form onSubmit={handleCreateClient} className="space-y-3 text-xs">
+            <form onSubmit={handleCreateClient} className="space-y-3.5">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Client / Company Name *</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   required
                   value={newClient.name}
                   onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Client Pvt Ltd"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold"
+                  placeholder="e.g. Ashirvad Pipes Pvt Ltd"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:bg-white focus:border-brand-navy focus:outline-none"
                 />
               </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">GSTIN</label>
-                <input
-                  type="text"
-                  value={newClient.gstin}
-                  onChange={(e) => setNewClient(prev => ({ ...prev, gstin: e.target.value.toUpperCase() }))}
-                  placeholder="29AAAAA0000A1Z5"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">GSTIN (15 Chars)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newClient.gstin.length === 15 ? (isValidGSTIN(newClient.gstin) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                      {newClient.gstin.length}/15
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={15}
+                    value={newClient.gstin}
+                    onChange={(e) => {
+                      const gstin = cleanGSTIN(e.target.value);
+                      const pan = gstin.length >= 12 ? extractPanFromGSTIN(gstin) : newClient.pan;
+                      setNewClient(prev => ({ ...prev, gstin, pan }));
+                    }}
+                    placeholder="e.g. 29AABCA7061K1ZH"
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newClient.gstin && !isValidGSTIN(newClient.gstin) && newClient.gstin.length === 15 ? "border-rose-400 bg-rose-50/20" : "border-slate-200")}
+                  />
+                  {newClient.gstin && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (isValidGSTIN(newClient.gstin) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {isValidGSTIN(newClient.gstin) ? "✓ Valid GSTIN Format" : "15-char standard GSTIN format"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">PAN (10 Chars)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newClient.pan.length === 10 ? (isValidPAN(newClient.pan) ? "text-emerald-600" : "text-rose-500") : "text-slate-400")}>
+                      {newClient.pan.length}/10
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    placeholder="e.g. AABCA7061K"
+                    value={newClient.pan}
+                    onChange={(e) => setNewClient(prev => ({ ...prev, pan: cleanPAN(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newClient.pan && !isValidPAN(newClient.pan) && newClient.pan.length === 10 ? "border-rose-400 bg-rose-50/20" : "border-slate-200")}
+                  />
+                  {newClient.pan && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (isValidPAN(newClient.pan) ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {isValidPAN(newClient.pan) ? "✓ Valid PAN Format" : "10-char PAN format (e.g. AABCA7061K)"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">Contact Phone (10 Digits)</label>
+                    <span className={"text-[10px] font-mono font-bold " + (newClient.phone.length === 10 ? "text-emerald-600" : "text-slate-400")}>
+                      {newClient.phone.length}/10
+                    </span>
+                  </div>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="e.g. 9944121306"
+                    value={newClient.phone}
+                    onChange={(e) => setNewClient(prev => ({ ...prev, phone: cleanPhone(e.target.value) }))}
+                    className={"w-full px-3.5 py-2 border rounded-xl text-sm font-mono " + (newClient.phone && newClient.phone.length === 10 ? "border-emerald-400" : "border-slate-200")}
+                  />
+                  {newClient.phone && (
+                    <p className={"text-[10px] mt-0.5 font-medium " + (newClient.phone.length === 10 ? "text-emerald-600 font-bold" : "text-slate-400")}>
+                      {newClient.phone.length === 10 ? "✓ 10-Digit Mobile Number" : "Must be strictly 10 digits"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Registered State</label>
+                  <select
+                    value={newClient.state}
+                    onChange={(e) => setNewClient(prev => ({ ...prev, state: e.target.value }))}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+                  >
+                    <option value="">-- Select State --</option>
+                    {INDIAN_STATES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Address / State</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Registered Billing Address</label>
+                <textarea
+                  rows="2"
                   value={newClient.address}
                   onChange={(e) => setNewClient(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Industrial Area, Bangalore"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200"
+                  placeholder="Plot / Sy No, Industrial Area, City"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
                 />
               </div>
-              <div className="flex justify-end space-x-2 pt-2">
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowClientModal(false)}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600"
+                  className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-brand-navy text-white font-bold"
+                  className="px-4 py-2 text-sm font-bold bg-brand-green hover:bg-brand-green-dark text-white rounded-xl shadow-xs"
                 >
-                  Save Client
+                  Save & Select Client
                 </button>
               </div>
             </form>

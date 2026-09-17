@@ -18,7 +18,8 @@ import {
   Search,
   History,
   RotateCcw,
-  Receipt
+  Receipt,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { numberToIndianWords } from '../utils/numberToWords';
@@ -32,7 +33,8 @@ export function GenerateInvoice({
   trips = [], 
   invoices = [], 
   companySettings, 
-  onGenerateInvoice 
+  onGenerateInvoice,
+  onDeleteInvoice 
 }) {
   const ITEMS_PER_PAGE = 10;
   const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id || '');
@@ -564,6 +566,20 @@ export function GenerateInvoice({
                           <Printer className="w-3.5 h-3.5 text-brand-gold" />
                           <span>View / Print</span>
                         </button>
+                        {onDeleteInvoice && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete invoice #${inv.invoice_number}? The attached trips will become un-invoiced.`)) {
+                                onDeleteInvoice(inv.id);
+                              }
+                            }}
+                            className="inline-flex items-center justify-center p-1.5 ml-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                            title="Delete Invoice"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
