@@ -42,8 +42,8 @@ export function PaymentsView({
 
     if (matched.length > 0) return matched;
 
-    // Fallback synthesis if trip has paid amount or is settled but no granular payments table rows yet
-    if ((trip.totalPaidAmount || 0) > 0 || trip.status === "full_payment") {
+    // Fallback synthesis ONLY if trip actually has a recorded positive paid amount
+    if ((trip.totalPaidAmount || 0) > 0) {
       return [
         {
           id: "synth-" + trip.id,
@@ -52,10 +52,10 @@ export function PaymentsView({
           payment_type: trip.status === "full_payment" ? "full_payment" : (trip.status === "half_payment" ? "half_payment" : "advance"),
           payment_date: trip.loading_date || new Date().toISOString().split("T")[0],
           payment_mode: trip.payment_mode || "online",
-          amount: trip.totalPaidAmount || trip.freightAmount,
+          amount: trip.totalPaidAmount,
           utr_number: trip.utr_number || ("2609" + String(trip.load_id || "101").replace(/\D/g, "").padStart(8, "0")).slice(0, 12),
           payer_name: trip.clientName || trip.consignor || "Sri Ram Client Desk",
-          notes: "Settled transaction recorded for Load #" + trip.load_id
+          notes: "Recorded transaction for Load #" + trip.load_id
         }
       ];
     }
@@ -78,23 +78,29 @@ export function PaymentsView({
       );
 
       const paymentsTotal = tripPaymentsList.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
+      const dbTotalPaid = parseFloat(t.total_paid_amount) || 0;
+      const dbAdvancePaid = parseFloat(t.advance_paid) || 0;
+
+      // Total paid is strictly based on recorded payments or explicit non-zero DB paid amounts
       const totalPaid = paymentsTotal > 0 
         ? paymentsTotal 
-        : (parseFloat(t.total_paid_amount) || (t.payment_status === "full_payment" ? freight : (parseFloat(t.advance_paid) || 0)));
+        : Math.max(dbTotalPaid, dbAdvancePaid);
 
-      const balance = t.balance_amount !== undefined && paymentsTotal === 0 
-        ? parseFloat(t.balance_amount) 
-        : Math.max(0, freight - totalPaid);
+      // Balance is strictly freight - totalPaid (if unpaid, balance is full freight)
+      const balance = Math.max(0, freight - totalPaid);
 
-      const hasAdvancePayment = tripPaymentsList.some(p => p.payment_type === "advance") || (parseFloat(t.advance_paid) || 0) > 0 || (totalPaid > 0 && totalPaid < freight * 0.45);
-      const hasHalfPayment = tripPaymentsList.some(p => p.payment_type === "half_payment") || (totalPaid >= freight * 0.45 && balance > 0);
+      const hasAdvancePayment = tripPaymentsList.some(p => p.payment_type === "advance") || dbAdvancePaid > 0 || (totalPaid > 0 && totalPaid < freight * 0.45);
+      const hasHalfPayment = tripPaymentsList.some(p => p.payment_type === "half_payment") || (totalPaid >= freight * 0.45 && totalPaid < freight);
 
-      let computedStatus = t.payment_status || "pending";
-      if (balance <= 0 && freight > 0) {
+      // Status computation:
+      // A trip is only settled (full_payment) if totalPaid >= freight AND freight > 0
+      // If totalPaid is 0, it is ALWAYS Pending!
+      let computedStatus = "pending";
+      if (freight > 0 && totalPaid >= freight) {
         computedStatus = "full_payment";
-      } else if (hasHalfPayment || totalPaid >= freight * 0.45) {
+      } else if (hasHalfPayment || (totalPaid >= freight * 0.45 && totalPaid < freight)) {
         computedStatus = "half_payment";
-      } else if (hasAdvancePayment || totalPaid > 0) {
+      } else if (hasAdvancePayment || (totalPaid > 0 && totalPaid < freight * 0.45)) {
         computedStatus = "advance";
       } else {
         computedStatus = "pending";

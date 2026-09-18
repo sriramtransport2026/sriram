@@ -1731,14 +1731,24 @@ export const db = {
       try {
         const { data, error } = await supabase.from('trips').select('*, vehicles(*), clients(*)').order('loading_date', { ascending: false });
         if (!error && Array.isArray(data)) {
-          const mappedTrips = data.map(t => ({
-            ...t,
-            company_gstin: t.company_gstin || '33GUPS2382N1ZF',
-            company_name: t.company_name || (t.company_gstin === '33GWYPP4027A1ZD' ? 'Sri Ram Logistics' : 'Sri Ram Transport'),
-            profit: t.profit !== undefined ? t.profit : calculateProfit(t.freight_amount, t.vehicle_freight),
-            client: t.client || t.clients || null,
-            vehicle: t.vehicle || t.vehicles || null,
-          }));
+          const mappedTrips = data.map(t => {
+            const freight = parseFloat(t.freight_amount) || 0;
+            const totalPaid = parseFloat(t.total_paid_amount) || 0;
+            const balance = Math.max(0, freight - totalPaid);
+            const pStatus = (totalPaid >= freight && freight > 0) ? 'full_payment' : (totalPaid > 0 ? (t.payment_status || 'advance') : 'pending');
+            return {
+              ...t,
+              company_gstin: t.company_gstin || '33GUPS2382N1ZF',
+              company_name: t.company_name || (t.company_gstin === '33GWYPP4027A1ZD' ? 'Sri Ram Logistics' : 'Sri Ram Transport'),
+              profit: t.profit !== undefined ? t.profit : calculateProfit(t.freight_amount, t.vehicle_freight),
+              client: t.client || t.clients || null,
+              vehicle: t.vehicle || t.vehicles || null,
+              payment_status: pStatus,
+              total_paid_amount: totalPaid,
+              advance_paid: parseFloat(t.advance_paid) || 0,
+              balance_amount: balance,
+            };
+          });
           setLocalItem(STORAGE_KEYS.TRIPS, mappedTrips);
           return mappedTrips;
         }
@@ -1751,12 +1761,22 @@ export const db = {
     const clients = getLocalItem(STORAGE_KEYS.CLIENTS, []);
     const vehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
 
-    return localTrips.map(t => ({
-      ...t,
-      profit: calculateProfit(t.freight_amount, t.vehicle_freight),
-      client: clients.find(c => c.id === t.client_id) || null,
-      vehicle: vehicles.find(v => v.id === t.vehicle_id) || null,
-    }));
+    return localTrips.map(t => {
+      const freight = parseFloat(t.freight_amount) || 0;
+      const totalPaid = parseFloat(t.total_paid_amount) || 0;
+      const balance = Math.max(0, freight - totalPaid);
+      const pStatus = (totalPaid >= freight && freight > 0) ? 'full_payment' : (totalPaid > 0 ? (t.payment_status || 'advance') : 'pending');
+      return {
+        ...t,
+        profit: calculateProfit(t.freight_amount, t.vehicle_freight),
+        client: clients.find(c => c.id === t.client_id) || null,
+        vehicle: vehicles.find(v => v.id === t.vehicle_id) || null,
+        payment_status: pStatus,
+        total_paid_amount: totalPaid,
+        advance_paid: parseFloat(t.advance_paid) || 0,
+        balance_amount: balance,
+      };
+    });
   },
 
   async saveTrip(tripData) {
@@ -1768,6 +1788,12 @@ export const db = {
     const validVehicleId = resolveVehicleId(tripData.vehicle_id) || (isUuid(tripData.vehicle_id) ? tripData.vehicle_id : null);
     const validInvoiceId = resolveInvoiceId(tripData.invoice_id) || (isUuid(tripData.invoice_id) ? tripData.invoice_id : null);
 
+    const freightAmount = parseFloat(tripData.freight_amount) || 0;
+    const paidAmt = parseFloat(tripData.total_paid_amount) || 0;
+    const balAmt = tripData.balance_amount !== undefined && tripData.balance_amount !== null && !isNaN(parseFloat(tripData.balance_amount)) && paidAmt > 0
+      ? parseFloat(tripData.balance_amount)
+      : Math.max(0, freightAmount - paidAmt);
+
     const payload = {
       ...tripData,
       id: validId,
@@ -1776,10 +1802,14 @@ export const db = {
       invoice_id: validInvoiceId,
       company_gstin: tripData.company_gstin || activeEntity.gstin,
       company_name: tripData.company_name || activeEntity.company_name,
-      freight_amount: parseFloat(tripData.freight_amount) || 0,
+      freight_amount: freightAmount,
       vehicle_freight: parseFloat(tripData.vehicle_freight) || 0,
       profit,
       status: tripData.status || 'booked',
+      payment_status: tripData.payment_status || (paidAmt >= freightAmount && freightAmount > 0 ? 'full_payment' : (paidAmt > 0 ? 'advance' : 'pending')),
+      advance_paid: parseFloat(tripData.advance_paid) || 0,
+      total_paid_amount: paidAmt,
+      balance_amount: balAmt,
     };
 
     let persistedId = validId;
@@ -2058,7 +2088,20 @@ export const db = {
           newInvoice.id = createdInv.id;
           const validTripIds = tripIds.map(tId => resolveTripId(tId) || tId).filter(isUuid);
           if (validTripIds.length > 0) {
-            await supabase.from('trips').update({ invoiced: true, invoice_id: createdInv.id }).in('id', validTripIds);
+            for (const tId of validTripIds) {
+              const currentT = selectedTrips.find(st => st.id === tId || resolveTripId(st.id) === tId);
+              const freight = parseFloat(currentT?.freight_amount) || 0;
+              const totalPaid = parseFloat(currentT?.total_paid_amount) || 0;
+              const bal = Math.max(0, freight - totalPaid);
+              const pStat = (totalPaid >= freight && freight > 0) ? 'full_payment' : (totalPaid > 0 ? (currentT?.payment_status || 'advance') : 'pending');
+              await supabase.from('trips').update({ 
+                invoiced: true, 
+                invoice_id: createdInv.id,
+                payment_status: pStat,
+                total_paid_amount: totalPaid,
+                balance_amount: bal
+              }).eq('id', tId);
+            }
           }
         }
       } catch (err) {
@@ -2073,7 +2116,18 @@ export const db = {
     const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
     const updatedTrips = trips.map(t => {
       if (tripIds.includes(t.id)) {
-        return { ...t, invoiced: true, invoice_id: newInvoice.id };
+        const freight = parseFloat(t.freight_amount) || 0;
+        const totalPaid = parseFloat(t.total_paid_amount) || 0;
+        const bal = Math.max(0, freight - totalPaid);
+        const pStat = (totalPaid >= freight && freight > 0) ? 'full_payment' : (totalPaid > 0 ? (t.payment_status || 'advance') : 'pending');
+        return { 
+          ...t, 
+          invoiced: true, 
+          invoice_id: newInvoice.id,
+          payment_status: pStat,
+          total_paid_amount: totalPaid,
+          balance_amount: bal
+        };
       }
       return t;
     });
@@ -2216,7 +2270,7 @@ export const db = {
 
         for (const tr of createdTrips) {
           tr.invoice_id = effectiveDbInvoiceId;
-          const { profit: _p, payment_status: _ps, total_paid_amount: _tpa, advance_paid: _ap, balance_amount: _ba, vehicle: _vh, client: _cl, vehicle_rate: _vr, lr_status: _ls, ...supTripPayload } = tr;
+          const { profit: _p, vehicle: _vh, client: _cl, vehicle_rate: _vr, lr_status: _ls, ...supTripPayload } = tr;
           let { data: supTrip, error: tripErr } = await supabase.from('trips').insert([supTripPayload]).select().single();
           if (tripErr) {
             console.error('Supabase saveDirectInvoiceEntry trip error:', tripErr);
@@ -2331,12 +2385,14 @@ export const db = {
       const balance = Math.max(0, freightAmount - totalPaid);
 
       let finalStatus = 'pending';
-      if (balance <= 0) {
+      if (totalPaid >= freightAmount && freightAmount > 0) {
         finalStatus = 'full_payment';
-      } else if (payload.payment_type === 'half_payment' || totalPaid >= freightAmount * 0.45) {
+      } else if (payload.payment_type === 'half_payment' || (totalPaid >= freightAmount * 0.45 && totalPaid < freightAmount)) {
         finalStatus = 'half_payment';
-      } else if (totalAdvance > 0) {
+      } else if (totalAdvance > 0 || totalPaid > 0) {
         finalStatus = 'advance';
+      } else {
+        finalStatus = 'pending';
       }
 
       const updatedTrips = trips.map(t => {

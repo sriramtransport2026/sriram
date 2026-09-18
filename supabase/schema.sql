@@ -245,7 +245,16 @@ ALTER TABLE trips
   ADD COLUMN IF NOT EXISTS payment_status text DEFAULT 'pending',
   ADD COLUMN IF NOT EXISTS advance_paid numeric(12,2) DEFAULT 0,
   ADD COLUMN IF NOT EXISTS total_paid_amount numeric(12,2) DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS balance_amount numeric(12,2) DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS balance_amount numeric(12,2);
+
+-- Fix any legacy trips that defaulted balance_amount to 0 while total_paid_amount is 0
+UPDATE trips 
+SET 
+  balance_amount = freight_amount, 
+  payment_status = 'pending' 
+WHERE (total_paid_amount = 0 OR total_paid_amount IS NULL) 
+  AND (balance_amount = 0 OR balance_amount IS NULL) 
+  AND freight_amount > 0;
 
 CREATE TABLE IF NOT EXISTS payments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
