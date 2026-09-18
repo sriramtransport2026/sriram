@@ -57,13 +57,13 @@ export function LoginPage({ onLoginSuccess }) {
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-brand-gold rounded-full blur-3xl opacity-15 pointer-events-none" />
 
       {/* Main Container */}
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200/80">
           
           {/* =========================================================================
               LEFT COLUMN: Enterprise Branding & Trust Credentials (Deep Navy Theme)
              ========================================================================= */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-brand-navy-dark via-brand-navy to-brand-navy-subtle text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
+          <div className="lg:col-span-5 bg-gradient-to-br from-brand-navy-dark via-brand-navy to-brand-navy-subtle text-white p-5 sm:p-8 lg:p-10 flex flex-col justify-between relative overflow-hidden">
             
             {/* Subtle overlay grid effect */}
             <div className="absolute inset-0 opacity-5 pointer-events-none bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -164,7 +164,7 @@ export function LoginPage({ onLoginSuccess }) {
           {/* =========================================================================
               RIGHT COLUMN: Authentication Form & Quick Demo Access
              ========================================================================= */}
-          <div className="lg:col-span-7 bg-white p-8 sm:p-12 flex flex-col justify-between">
+          <div className="lg:col-span-7 bg-white p-5 sm:p-8 lg:p-12 flex flex-col justify-between">
             <div className="max-w-md mx-auto w-full space-y-6">
               
               {/* Form Header */}

@@ -199,14 +199,14 @@ export function GenerateInvoice({
   const endRecordIndex = Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredInvoices.length);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
       {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-200/70">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center space-x-2 text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start"
+            className="inline-flex items-center space-x-2 text-xs sm:text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start"
           >
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Back to Dashboard</span>
@@ -222,7 +222,7 @@ export function GenerateInvoice({
           <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold-dark bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
             Billing & GST Desk
           </span>
-          <h2 className="text-xl font-black text-brand-navy font-display">Generate Tax Invoice</h2>
+          <h2 className="text-lg sm:text-xl font-black text-brand-navy font-display">Generate Tax Invoice</h2>
         </div>
       </div>
 
@@ -234,11 +234,11 @@ export function GenerateInvoice({
       )}
 
       {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         {/* Left 2 Columns: Client Selection & Completed Trips Checklist */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Client Selection Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-200/80 space-y-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-soft border border-slate-200/80 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
                 <Building2 className="w-4 h-4 text-brand-navy" />
@@ -320,7 +320,7 @@ export function GenerateInvoice({
             {/* Checklist Table */}
             {availableTrips.length > 0 ? (
               <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs">
+                <table className="w-full min-w-[650px] text-left text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                       <th className="py-2.5 px-3 w-10 text-center">
@@ -510,8 +510,8 @@ export function GenerateInvoice({
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full min-w-0">
+            <table className="w-full min-w-[780px] text-left text-xs">
               <thead className="bg-slate-50/80 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-y border-slate-100">
                 <tr>
                   <th className="py-3 px-4">Invoice #</th>

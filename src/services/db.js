@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'srt_current_user_v1',
   ACTIVE_ENTITY_GSTIN: 'srt_active_entity_gstin_v1',
   COMPANY_ENTITIES: 'srt_company_entities_v1',
+  USER_LOGS: 'srt_user_logs_v1',
 };
 
 // UUID Validation, Generation & Legacy ID Resolvers for Supabase Postgres Foreign Key Integrity
@@ -1253,6 +1254,122 @@ const INITIAL_TRIPS = [
   }
 ];
 
+// Initial Seed User Logs for Audit & Activity Trail
+const INITIAL_USER_LOGS = [
+  {
+    id: 'log-001',
+    user_id: 'usr-adm-01',
+    user_name: 'Sri Ram Administrator',
+    user_email: 'admin@sriramtransport.com',
+    user_role: 'admin',
+    action: 'LOGIN',
+    module: 'Auth',
+    description: 'Sri Ram Administrator logged in successfully',
+    details: { role: 'admin', operating_gstin: 'ALL' },
+    company_gstin: '33GUPS2382N1ZF',
+    company_name: 'Sri Ram Transport',
+    created_at: '2026-06-01T08:30:00.000Z'
+  },
+  {
+    id: 'log-002',
+    user_id: 'usr-mgr-02',
+    user_name: 'Hosur Dispatch Manager',
+    user_email: 'manager@sriramtransport.com',
+    user_role: 'manager',
+    action: 'CREATE_TRIP',
+    module: 'Trips',
+    description: 'Created trip LOAD-22001 for client Ashirvad Pipes Pvt Ltd (Perandapalli to Madurai)',
+    details: { load_id: 'LOAD-22001', client: 'Ashirvad Pipes Pvt Ltd', freight: 39900, vehicle: 'TN 70 AB 1234' },
+    company_gstin: '33GUPS2382N1ZF',
+    company_name: 'Sri Ram Transport',
+    created_at: '2026-06-01T09:15:00.000Z'
+  },
+  {
+    id: 'log-003',
+    user_id: 'usr-mgr-02',
+    user_name: 'Hosur Dispatch Manager',
+    user_email: 'manager@sriramtransport.com',
+    user_role: 'manager',
+    action: 'COMPLETE_TRIP',
+    module: 'Trips',
+    description: 'Uploaded LR/POD receipt and marked trip LOAD-22001 as Completed',
+    details: { load_id: 'LOAD-22001', lr_number: 'LR-2026-0891' },
+    company_gstin: '33GUPS2382N1ZF',
+    company_name: 'Sri Ram Transport',
+    created_at: '2026-06-02T14:40:00.000Z'
+  },
+  {
+    id: 'log-004',
+    user_id: 'usr-adm-01',
+    user_name: 'Sri Ram Administrator',
+    user_email: 'admin@sriramtransport.com',
+    user_role: 'admin',
+    action: 'GENERATE_INVOICE',
+    module: 'Invoices',
+    description: 'Generated Tax Invoice INV-2026-001 for Ashirvad Pipes (₹1,09,800.00)',
+    details: { invoice_number: 'INV-2026-001', trips_count: 2, total_amount: 109800 },
+    company_gstin: '33GUPS2382N1ZF',
+    company_name: 'Sri Ram Transport',
+    created_at: '2026-06-03T11:05:00.000Z'
+  },
+  {
+    id: 'log-005',
+    user_id: 'usr-mgr-02',
+    user_name: 'Hosur Dispatch Manager',
+    user_email: 'manager@sriramtransport.com',
+    user_role: 'manager',
+    action: 'RECORD_PAYMENT',
+    module: 'Payments',
+    description: 'Recorded Advance Payment of ₹25,000 for Invoice INV-2026-001 via Online (UTR: 202606019812)',
+    details: { payment_type: 'advance', payment_mode: 'Online', amount: 25000, utr_no: '202606019812' },
+    company_gstin: '33GUPS2382N1ZF',
+    company_name: 'Sri Ram Transport',
+    created_at: '2026-06-03T16:20:00.000Z'
+  },
+  {
+    id: 'log-006',
+    user_id: 'usr-srl-01',
+    user_name: 'SRL Logistics Coordinator',
+    user_email: 'manager@sriramlogistics.com',
+    user_role: 'manager',
+    action: 'LOGIN',
+    module: 'Auth',
+    description: 'SRL Logistics Coordinator logged in successfully',
+    details: { role: 'manager', operating_gstin: '33GWYPP4027A1ZD' },
+    company_gstin: '33GWYPP4027A1ZD',
+    company_name: 'Sri Ram Logistics',
+    created_at: '2026-06-04T08:45:00.000Z'
+  },
+  {
+    id: 'log-007',
+    user_id: 'usr-srl-02',
+    user_name: 'SRL Thorapalli Desk Staff',
+    user_email: 'staff@sriramlogistics.com',
+    user_role: 'staff',
+    action: 'CREATE_TRIP',
+    module: 'Trips',
+    description: 'Booked load SRL-220101 for Supreme Industries (Hosur to Chennai)',
+    details: { load_id: 'SRL-220101', client: 'Supreme Industries Ltd', freight: 15400, vehicle: 'TN 24 C 8899' },
+    company_gstin: '33GWYPP4027A1ZD',
+    company_name: 'Sri Ram Logistics',
+    created_at: '2026-06-04T09:30:00.000Z'
+  },
+  {
+    id: 'log-008',
+    user_id: 'usr-srl-01',
+    user_name: 'SRL Logistics Coordinator',
+    user_email: 'manager@sriramlogistics.com',
+    user_role: 'manager',
+    action: 'RECORD_PAYMENT',
+    module: 'Payments',
+    description: 'Settled Full Clearance payment of ₹15,400 for SRL-220101 (UTR: 202606041234)',
+    details: { payment_type: 'full', payment_mode: 'Online', amount: 15400, utr_no: '202606041234' },
+    company_gstin: '33GWYPP4027A1ZD',
+    company_name: 'Sri Ram Logistics',
+    created_at: '2026-06-05T12:10:00.000Z'
+  }
+];
+
 // Helper to calculate profit with SQL round behavior
 export function calculateProfit(freightAmount, vehicleFreight) {
   const f = parseFloat(freightAmount) || 0;
@@ -1411,6 +1528,11 @@ function ensureSeedData() {
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_ENTITY_GSTIN)) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_ENTITY_GSTIN, '33GUPS2382N1ZF');
   }
+
+  const existingLogs = getLocalItem(STORAGE_KEYS.USER_LOGS, []);
+  if (existingLogs.length === 0) {
+    setLocalItem(STORAGE_KEYS.USER_LOGS, INITIAL_USER_LOGS);
+  }
 }
 
 // Initialize immediately
@@ -1478,10 +1600,27 @@ export const db = {
     } else {
       setLocalItem(STORAGE_KEYS.CLIENTS, [finalClient, ...list.filter(c => c.id !== persistedId)]);
     }
+
+    const isEdit = Boolean(clientData.id);
+    this.logUserAction({
+      action: isEdit ? 'UPDATE_CLIENT' : 'ADD_CLIENT',
+      module: 'Clients',
+      description: `${isEdit ? 'Updated' : 'Added'} client profile: ${finalClient.name} (GSTIN: ${finalClient.gstin || 'Unregistered'})`,
+      details: { client_id: finalClient.id, name: finalClient.name, gstin: finalClient.gstin, state: finalClient.state },
+      company_gstin: finalClient.company_gstin
+    });
+
     return finalClient;
   },
 
   async deleteClient(id) {
+    this.logUserAction({
+      action: 'DELETE_CLIENT',
+      module: 'Clients',
+      description: `Deleted client profile ${id}`,
+      details: { client_id: id }
+    });
+
     const targetId = resolveClientId(id) || id;
     if (isSupabaseConfigured) {
       try {
@@ -1552,10 +1691,27 @@ export const db = {
     } else {
       setLocalItem(STORAGE_KEYS.VEHICLES, [finalVehicle, ...list.filter(v => v.id !== persistedId)]);
     }
+
+    const isEditVehicle = Boolean(vehicleData.id);
+    this.logUserAction({
+      action: isEditVehicle ? 'UPDATE_VEHICLE' : 'ADD_VEHICLE',
+      module: 'Vehicles',
+      description: `${isEditVehicle ? 'Updated' : 'Added'} vehicle: ${finalVehicle.truck_number} (${finalVehicle.truck_type || 'Lorry'})`,
+      details: { vehicle_id: finalVehicle.id, truck_number: finalVehicle.truck_number, driver_name: finalVehicle.driver_name, phone: finalVehicle.driver_phone },
+      company_gstin: finalVehicle.company_gstin
+    });
+
     return finalVehicle;
   },
 
   async deleteVehicle(id) {
+    this.logUserAction({
+      action: 'DELETE_VEHICLE',
+      module: 'Vehicles',
+      description: `Deleted vehicle record ${id}`,
+      details: { vehicle_id: id }
+    });
+
     const targetId = resolveVehicleId(id) || id;
     if (isSupabaseConfigured) {
       try {
@@ -1659,6 +1815,25 @@ export const db = {
     } else {
       setLocalItem(STORAGE_KEYS.TRIPS, [finalTrip, ...list.filter(t => t.id !== persistedId)]);
     }
+
+    const isEdit = Boolean(tripData.id);
+    this.logUserAction({
+      action: isEdit ? 'UPDATE_TRIP' : 'CREATE_TRIP',
+      module: 'Trips',
+      description: `${isEdit ? 'Updated' : 'Created'} trip ${finalTrip.load_id || finalTrip.id} (${finalTrip.from_location || 'Origin'} ➔ ${finalTrip.to_location || 'Destination'}) - Freight: ₹${Number(finalTrip.freight_amount || 0).toLocaleString('en-IN')}`,
+      details: {
+        trip_id: finalTrip.id,
+        load_id: finalTrip.load_id,
+        client_id: finalTrip.client_id,
+        vehicle_id: finalTrip.vehicle_id,
+        freight: finalTrip.freight_amount,
+        profit: finalTrip.profit,
+        status: finalTrip.status
+      },
+      company_gstin: finalTrip.company_gstin,
+      company_name: finalTrip.company_name
+    });
+
     return finalTrip;
   },
 
@@ -1667,6 +1842,13 @@ export const db = {
     if (!lr_number || !lr_file_url) {
       throw new Error('Hard Gate: Both LR Number and signed LR document copy are strictly required to mark a trip as Completed.');
     }
+
+    this.logUserAction({
+      action: 'COMPLETE_TRIP',
+      module: 'Trips',
+      description: `Completed trip with signed LR document #${lr_number}`,
+      details: { trip_id: tripId, lr_number, lr_file_url }
+    });
 
     if (isSupabaseConfigured) {
       try {
@@ -1728,6 +1910,13 @@ export const db = {
   },
 
   async deleteTrip(id) {
+    this.logUserAction({
+      action: 'DELETE_TRIP',
+      module: 'Trips',
+      description: `Deleted trip record ${id}`,
+      details: { trip_id: id }
+    });
+
     if (isSupabaseConfigured) {
       try {
         // Delete related payments first to prevent foreign key violation
@@ -1890,10 +2079,26 @@ export const db = {
     });
     setLocalItem(STORAGE_KEYS.TRIPS, updatedTrips);
 
+    this.logUserAction({
+      action: 'GENERATE_INVOICE',
+      module: 'Invoices',
+      description: `Generated Invoice #${newInvoice.invoice_number} for ₹${Number(newInvoice.net_amount).toLocaleString('en-IN')} (${tripIds.length} loads)`,
+      details: { invoice_number: newInvoice.invoice_number, trips_count: tripIds.length, net_amount: newInvoice.net_amount, client_id: newInvoice.client_id },
+      company_gstin: newInvoice.company_gstin,
+      company_name: newInvoice.company_name
+    });
+
     return newInvoice;
   },
 
   async deleteInvoice(id) {
+    this.logUserAction({
+      action: 'DELETE_INVOICE',
+      module: 'Invoices',
+      description: `Deleted invoice record ${id}`,
+      details: { invoice_id: id }
+    });
+
     if (isSupabaseConfigured) {
       try {
         // Unlink associated trips
@@ -2032,6 +2237,20 @@ export const db = {
     const existingTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
     setLocalItem(STORAGE_KEYS.TRIPS, [...createdTrips, ...existingTrips]);
 
+    this.logUserAction({
+      action: 'DIRECT_INVOICE',
+      module: 'Invoices',
+      description: `Direct invoice #${newInvoice.invoice_number} created with ${createdTrips.length} completed loads (Total: ₹${Number(netAmount).toLocaleString('en-IN')})`,
+      details: {
+        invoice_number: newInvoice.invoice_number,
+        net_amount: netAmount,
+        trips_count: createdTrips.length,
+        client_id: cleanClientId
+      },
+      company_gstin: effectiveGstin,
+      company_name: effectiveName
+    });
+
     return {
       invoice: newInvoice,
       trips: createdTrips
@@ -2148,10 +2367,34 @@ export const db = {
       }
     }
 
+    this.logUserAction({
+      action: 'RECORD_PAYMENT',
+      module: 'Payments',
+      description: `Recorded ${payload.payment_type.replace('_', ' ').toUpperCase()} payment of ₹${Number(payload.amount).toLocaleString('en-IN')} via ${payload.payment_mode.toUpperCase()}${payload.utr_number ? ` (UTR: ${payload.utr_number})` : ''}`,
+      details: {
+        payment_id: payload.id,
+        amount: payload.amount,
+        payment_type: payload.payment_type,
+        payment_mode: payload.payment_mode,
+        utr_number: payload.utr_number,
+        trip_id: payload.trip_id,
+        invoice_id: payload.invoice_id
+      },
+      company_gstin: payload.company_gstin,
+      company_name: payload.company_name
+    });
+
     return payload;
   },
 
   async deletePayment(id) {
+    this.logUserAction({
+      action: 'DELETE_PAYMENT',
+      module: 'Payments',
+      description: `Deleted payment record ${id}`,
+      details: { payment_id: id }
+    });
+
     let paymentToDelete = null;
     const payments = getLocalItem(STORAGE_KEYS.PAYMENTS, []);
     paymentToDelete = payments.find(p => p.id === id);
@@ -2214,7 +2457,6 @@ export const db = {
         } catch (e) {}
       }
     }
-
     return true;
   },
 
@@ -2290,7 +2532,16 @@ export const db = {
       }
     }
     setLocalItem(STORAGE_KEYS.SETTINGS, settings);
-    return updatedEntities[gstin];
+    const saved = updatedEntities[gstin];
+    this.logUserAction({
+      action: 'UPDATE_SETTINGS',
+      module: 'Settings',
+      description: `Updated profile & tax configuration for ${saved.legal_name || 'Sri Ram Transport'}`,
+      details: { gstin: saved.gstin, legal_name: saved.legal_name, trade_name: saved.trade_name },
+      company_gstin: saved.gstin,
+      company_name: saved.legal_name
+    });
+    return saved;
   },
 
   // AUTHENTICATION & USERS
@@ -2367,6 +2618,13 @@ export const db = {
               last_login: new Date().toISOString()
             };
             setLocalItem(STORAGE_KEYS.CURRENT_USER, user);
+            this.logUserAction({
+              action: 'LOGIN',
+              module: 'Auth',
+              description: `${user.full_name || user.username} logged in successfully`,
+              details: { role: user.role, operating_gstin: user.operating_gstin },
+              user
+            });
             return user;
           }
         }
@@ -2403,6 +2661,13 @@ export const db = {
         last_login: new Date().toISOString()
       };
       setLocalItem(STORAGE_KEYS.CURRENT_USER, safeUser);
+      this.logUserAction({
+        action: 'LOGIN',
+        module: 'Auth',
+        description: `${safeUser.full_name || safeUser.username} logged in successfully`,
+        details: { role: safeUser.role, operating_gstin: safeUser.operating_gstin },
+        user: safeUser
+      });
       return safeUser;
     }
 
@@ -2422,6 +2687,16 @@ export const db = {
   },
 
   logout() {
+    const user = this.getCurrentUser();
+    if (user) {
+      this.logUserAction({
+        action: 'LOGOUT',
+        module: 'Auth',
+        description: `${user.full_name || user.username} logged out`,
+        details: { role: user.role },
+        user
+      });
+    }
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   },
 
@@ -2670,10 +2945,24 @@ export const db = {
       }
     }
 
+    this.logUserAction({
+      action: isEdit ? 'UPDATE_USER' : 'CREATE_USER',
+      module: 'Users',
+      description: `${isEdit ? 'Updated' : 'Created'} user account: ${userData.full_name || userData.username} (${userData.role || 'staff'})`,
+      details: { username: userData.username, email: userData.email, role: userData.role, operating_gstin: effectiveOperatingGstin }
+    });
+
     return savedUser || { ...userData, assigned_modules: modulesToSave, operating_gstin: effectiveOperatingGstin };
   },
 
   async deleteUser(userId) {
+    this.logUserAction({
+      action: 'DELETE_USER',
+      module: 'Users',
+      description: `Deleted user account ${userId}`,
+      details: { user_id: userId }
+    });
+
     if (isSupabaseConfigured) {
       try {
         await supabase.from('app_users').delete().eq('id', userId);
@@ -2688,6 +2977,13 @@ export const db = {
   },
 
   async toggleUserStatus(userId, isActive) {
+    this.logUserAction({
+      action: isActive ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
+      module: 'Users',
+      description: `${isActive ? 'Activated' : 'Suspended'} user account ${userId}`,
+      details: { user_id: userId, is_active: isActive }
+    });
+
     if (isSupabaseConfigured) {
       try {
         await supabase.from('app_users').update({ is_active: isActive }).eq('id', userId);
@@ -2701,6 +2997,86 @@ export const db = {
     return true;
   },
 
+  // USER LOGS & AUDIT TRAIL
+  async getUserLogs(filterGstin = null) {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('user_logs').select('*').order('created_at', { ascending: false }).limit(500);
+        if (filterGstin && filterGstin !== 'ALL') {
+          query = query.eq('company_gstin', filterGstin);
+        }
+        const { data, error } = await query;
+        if (!error && Array.isArray(data) && data.length > 0) {
+          setLocalItem(STORAGE_KEYS.USER_LOGS, data);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase getUserLogs failed, using local storage fallback:', err);
+      }
+    }
+
+    const localLogs = getLocalItem(STORAGE_KEYS.USER_LOGS, INITIAL_USER_LOGS);
+    if (filterGstin && filterGstin !== 'ALL') {
+      return localLogs.filter(l => !l.company_gstin || l.company_gstin === filterGstin);
+    }
+    return localLogs;
+  },
+
+  async logUserAction({ action, module, description, details = {}, user = null, company_gstin = null, company_name = null }) {
+    try {
+      const activeUser = user || this.getCurrentUser();
+      const activeCompany = this.getActiveCompany ? this.getActiveCompany() : null;
+      const gstin = company_gstin || activeCompany?.gstin || '33GUPS2382N1ZF';
+      const firmName = company_name || activeCompany?.legal_name || (gstin === '33GWYPP4027A1ZD' ? 'Sri Ram Logistics' : 'Sri Ram Transport');
+
+      const logRecord = {
+        id: generateUuid(),
+        user_id: activeUser?.id || 'usr-system',
+        user_name: activeUser?.full_name || activeUser?.username || 'Sri Ram Administrator',
+        user_email: activeUser?.email || 'admin@sriramtransport.com',
+        user_role: activeUser?.role || 'admin',
+        action: action || 'ACTION',
+        module: module || 'General',
+        description: description || 'User action performed',
+        details: typeof details === 'object' && details !== null ? details : { raw: details },
+        company_gstin: gstin,
+        company_name: firmName,
+        created_at: new Date().toISOString()
+      };
+
+      // Always write to local storage at the top
+      const existingLogs = getLocalItem(STORAGE_KEYS.USER_LOGS, INITIAL_USER_LOGS);
+      const updatedLogs = [logRecord, ...existingLogs.filter(l => l.id !== logRecord.id)].slice(0, 1000);
+      setLocalItem(STORAGE_KEYS.USER_LOGS, updatedLogs);
+
+      // Try inserting into Supabase non-blockingly
+      if (isSupabaseConfigured) {
+        supabase.from('user_logs').insert([logRecord]).then(({ error }) => {
+          if (error) {
+            console.warn('Supabase logUserAction insert warning (table may need schema migration):', error.message);
+          }
+        }).catch(e => console.warn('Supabase logUserAction error:', e));
+      }
+
+      return logRecord;
+    } catch (e) {
+      console.error('Error in logUserAction:', e);
+      return null;
+    }
+  },
+
+  async clearUserLogs() {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('user_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (e) {
+        console.warn('Supabase clearUserLogs error:', e);
+      }
+    }
+    setLocalItem(STORAGE_KEYS.USER_LOGS, []);
+    return true;
+  },
+
   // Reset to fresh demo data
   resetToDemoData() {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
@@ -2711,5 +3087,6 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     localStorage.setItem(STORAGE_KEYS.COMPANY_ENTITIES, JSON.stringify(DEFAULT_COMPANY_ENTITIES));
     localStorage.setItem(STORAGE_KEYS.ACTIVE_ENTITY_GSTIN, '33GUPS2382N1ZF');
+    localStorage.setItem(STORAGE_KEYS.USER_LOGS, JSON.stringify(INITIAL_USER_LOGS));
   }
 };

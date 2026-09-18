@@ -85,14 +85,14 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-200/70">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center space-x-2 text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start"
+            className="inline-flex items-center space-x-2 text-xs sm:text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start"
           >
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Back to Dashboard</span>
@@ -108,14 +108,14 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
           <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold-dark bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
             Logistics Workflow
           </span>
-          <h2 className="text-xl font-black text-brand-navy font-display">Trip Status Board</h2>
+          <h2 className="text-lg sm:text-xl font-black text-brand-navy font-display">Trip Status Board</h2>
         </div>
       </div>
 
       {/* Control Bar: Search, Filter, and Kanban/Table toggle */}
-      <div className="bg-white rounded-2xl p-4 shadow-soft border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-soft border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 w-full md:max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -127,35 +127,35 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
         </div>
 
         {/* Filter & View Switcher */}
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
+        <div className="flex flex-wrap items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto">
+          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar max-w-full">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               All ({trips.length})
             </button>
             <button
               onClick={() => setStatusFilter('booked')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'booked' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-amber-700'}`}
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'booked' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-amber-700'}`}
             >
               Booked ({trips.filter(t => t.status === 'booked').length})
             </button>
             <button
               onClick={() => setStatusFilter('in_transit')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'in_transit' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-blue-700'}`}
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'in_transit' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-blue-700'}`}
             >
               Transit ({trips.filter(t => t.status === 'in_transit').length})
             </button>
             <button
               onClick={() => setStatusFilter('completed')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'completed' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-emerald-700'}`}
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'completed' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-emerald-700'}`}
             >
               Completed ({trips.filter(t => t.status === 'completed').length})
             </button>
           </div>
 
-          <div className="border-l border-slate-200 pl-3 flex items-center space-x-1">
+          <div className="border-l border-slate-200 pl-2 sm:pl-3 flex items-center space-x-1 shrink-0">
             <button
               onClick={() => setViewMode('kanban')}
               className={`p-2 rounded-xl border transition ${viewMode === 'kanban' ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
@@ -176,7 +176,7 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-start">
           {/* Column 1: Booked */}
           <div className="space-y-3 bg-amber-500/5 p-4 rounded-2xl border border-amber-200/50">
             <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
@@ -444,8 +444,8 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
       ) : (
         /* TABLE VIEW */
         <div className="bg-white rounded-2xl shadow-soft border border-slate-200/80 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full min-w-0">
+            <table className="w-full min-w-[850px] text-left text-xs">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="py-3.5 px-4">LR NO</th>

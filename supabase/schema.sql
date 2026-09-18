@@ -53,6 +53,31 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_company_gstin ON vehicles(company_gstin)
 CREATE INDEX IF NOT EXISTS idx_invoices_company_gstin ON invoices(company_gstin);
 CREATE INDEX IF NOT EXISTS idx_app_users_operating_gstin ON app_users(operating_gstin);
 
+-- 3b. User Logs & Complete Audit History Table (Section 1 Migration)
+CREATE TABLE IF NOT EXISTS user_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text,
+  user_name text NOT NULL,
+  user_email text,
+  user_role text DEFAULT 'staff',
+  action text NOT NULL,
+  module text NOT NULL,
+  description text NOT NULL,
+  details jsonb DEFAULT '{}'::jsonb,
+  company_gstin text DEFAULT '33GUPS2382N1ZF',
+  company_name text DEFAULT 'Sri Ram Transport',
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_logs_company_gstin ON user_logs(company_gstin);
+CREATE INDEX IF NOT EXISTS idx_user_logs_created_at ON user_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_logs_module ON user_logs(module);
+CREATE INDEX IF NOT EXISTS idx_user_logs_user_name ON user_logs(user_name);
+
+ALTER TABLE user_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read/write user_logs" ON user_logs;
+CREATE POLICY "Allow authenticated read/write user_logs" ON user_logs FOR ALL USING (true) WITH CHECK (true);
+
 -- 4. Stored Procedure: Register New User with Bcrypt Hashing and Strict GST Assignment
 DROP FUNCTION IF EXISTS register_app_user(text, text, text, text, text, text, text[], text[], text[]);
 DROP FUNCTION IF EXISTS register_app_user(text, text, text, text, text, text, text[], text[], text[], text);
@@ -429,6 +454,31 @@ CREATE INDEX IF NOT EXISTS idx_payments_company_gstin ON payments(company_gstin)
 CREATE INDEX IF NOT EXISTS idx_payments_trip_id ON payments(trip_id);
 CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_trips_invoice_id ON trips(invoice_id);
+
+-- Table 8: USER LOGS (Full System Audit Trail)
+CREATE TABLE IF NOT EXISTS user_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text,
+  user_name text NOT NULL,
+  user_email text,
+  user_role text DEFAULT 'staff',
+  action text NOT NULL,
+  module text NOT NULL,
+  description text NOT NULL,
+  details jsonb DEFAULT '{}'::jsonb,
+  company_gstin text DEFAULT '33GUPS2382N1ZF',
+  company_name text DEFAULT 'Sri Ram Transport',
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_logs_company_gstin ON user_logs(company_gstin);
+CREATE INDEX IF NOT EXISTS idx_user_logs_created_at ON user_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_logs_module ON user_logs(module);
+CREATE INDEX IF NOT EXISTS idx_user_logs_user_name ON user_logs(user_name);
+
+ALTER TABLE user_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read/write user_logs" ON user_logs;
+CREATE POLICY "Allow authenticated read/write user_logs" ON user_logs FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ##############################################################################

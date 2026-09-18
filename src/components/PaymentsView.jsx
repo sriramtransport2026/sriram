@@ -256,14 +256,14 @@ export function PaymentsView({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in font-sans">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in font-sans">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-200/70">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button 
             type="button" 
             onClick={onBack} 
-            className="inline-flex items-center space-x-2 text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start cursor-pointer"
+            className="inline-flex items-center space-x-2 text-xs sm:text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Dashboard</span>
@@ -280,56 +280,56 @@ export function PaymentsView({
             </div>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-left sm:text-right">
           <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
             Collections & Settlements
           </span>
-          <h1 className="text-xl font-black text-brand-navy font-display">Payments Module</h1>
+          <h1 className="text-lg sm:text-xl font-black text-brand-navy font-display">Payments Module</h1>
           <p className="text-xs text-slate-500">Advance → Half Payment → Full Clearance (12-Digit UTR)</p>
         </div>
       </div>
 
       {/* Toast */}
       {toastMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-scale-up shadow-sm">
+        <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-scale-up shadow-sm">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{toastMessage.text}</span>
         </div>
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-soft border border-slate-200 space-y-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-soft border border-slate-200 space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Freight Billed</span>
             <div className="p-2 rounded-xl bg-slate-100"><DollarSign className="w-4 h-4 text-slate-600" /></div>
           </div>
-          <p className="text-2xl font-black font-display text-slate-900">₹{totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+          <p className="text-xl sm:text-2xl font-black font-display text-slate-900">₹{totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
           <p className="text-[11px] text-slate-400">{tripsWithPayments.length} consignments</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-soft border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/30 space-y-1">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-soft border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/30 space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Total Collected</span>
             <div className="p-2 rounded-xl bg-emerald-100"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div>
           </div>
-          <p className="text-2xl font-black font-display text-emerald-700">₹{totalCollected.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+          <p className="text-xl sm:text-2xl font-black font-display text-emerald-700">₹{totalCollected.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
           <p className="text-[11px] text-emerald-600">{fullCount} fully settled</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-soft border border-rose-200 bg-gradient-to-br from-white to-rose-50/30 space-y-1">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-soft border border-rose-200 bg-gradient-to-br from-white to-rose-50/30 space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-wider text-rose-600">Balance Pending</span>
             <div className="p-2 rounded-xl bg-rose-100"><AlertCircle className="w-4 h-4 text-rose-600" /></div>
           </div>
-          <p className="text-2xl font-black font-display text-rose-700">₹{totalBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+          <p className="text-xl sm:text-2xl font-black font-display text-rose-700">₹{totalBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
           <p className="text-[11px] text-rose-600">{pendingCount} pending · {advanceCount} advance · {halfCount} partial</p>
         </div>
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white rounded-2xl p-4 shadow-soft border border-slate-200 space-y-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-soft border border-slate-200 space-y-3">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-0.5">
           {[
             { key: "all", label: `All (${tripsWithPayments.length})`, cls: "bg-brand-navy text-white", inCls: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
             { key: "pending", label: `Pending (${pendingCount})`, cls: "bg-rose-600 text-white", inCls: "bg-rose-50 text-rose-700 hover:bg-rose-100" },
@@ -341,14 +341,14 @@ export function PaymentsView({
               key={tab.key} 
               type="button" 
               onClick={() => setActiveTab(tab.key)} 
-              className={"px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer " + (activeTab === tab.key ? tab.cls : tab.inCls)}
+              className={"px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap " + (activeTab === tab.key ? tab.cls : tab.inCls)}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
@@ -360,11 +360,11 @@ export function PaymentsView({
             />
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-xs font-bold text-slate-500">Client:</span>
+            <span className="text-xs font-bold text-slate-500 shrink-0">Client:</span>
             <select 
               value={clientFilter} 
               onChange={(e) => setClientFilter(e.target.value)} 
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
+              className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
             >
               <option value="all">All Clients ({clients.length})</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

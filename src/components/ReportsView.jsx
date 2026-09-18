@@ -79,14 +79,14 @@ export function ReportsView({ onBack, trips = [], clients = [], vehicles = [], c
   }, [filteredTrips]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
       {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-200/70">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center space-x-2 text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start"
+            className="inline-flex items-center space-x-2 text-xs sm:text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition self-start"
           >
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Back to Dashboard</span>
@@ -105,22 +105,22 @@ export function ReportsView({ onBack, trips = [], clients = [], vehicles = [], c
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
           {onNavigateToPayments && (
             <button
               type="button"
               onClick={() => onNavigateToPayments()}
-              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs hover:shadow transition cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs hover:shadow transition cursor-pointer"
             >
               <CreditCard className="w-4 h-4 text-brand-gold" />
-              <span>Go to Payments Module →</span>
+              <span>Payments Module →</span>
             </button>
           )}
           <div className="text-left sm:text-right">
             <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold-dark bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
               Financial Intelligence
             </span>
-            <h2 className="text-xl font-black text-brand-navy font-display">Profit & Loss Reports</h2>
+            <h2 className="text-lg sm:text-xl font-black text-brand-navy font-display">Profit & Loss Reports</h2>
           </div>
         </div>
       </div>
@@ -184,9 +184,9 @@ export function ReportsView({ onBack, trips = [], clients = [], vehicles = [], c
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Total Freight Billed */}
-        <div className="bg-white rounded-2xl p-5 shadow-soft border border-slate-200/80 space-y-2">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-soft border border-slate-200/80 space-y-1 sm:space-y-2">
           <div className="flex items-center justify-between text-slate-500 text-xs">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Total Freight Billed</span>
             <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
@@ -311,8 +311,8 @@ export function ReportsView({ onBack, trips = [], clients = [], vehicles = [], c
           )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto w-full min-w-0">
+          <table className="w-full min-w-[750px] text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
                 <th className="py-3 px-4">Load ID & Date</th>

@@ -353,14 +353,14 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6 animate-fade-in">
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
       {/* Top Header with Back to Dashboard & Logo */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-200/70">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center space-x-2 text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition"
+            className="inline-flex items-center space-x-2 text-xs sm:text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition"
           >
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Back to Dashboard</span>
@@ -376,7 +376,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
           <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold-dark bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
             LR Operations
           </span>
-          <h2 className="text-lg font-black text-brand-navy font-display">New Trip Entry (LR Book)</h2>
+          <h2 className="text-base sm:text-lg font-black text-brand-navy font-display">New Trip Entry (LR Book)</h2>
         </div>
       </div>
 
@@ -1139,7 +1139,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
       {/* QUICK ADD VEHICLE MODAL */}
       {showVehicleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-slate-900 mb-4 font-display">Add New Vehicle to Fleet</h3>
             <form onSubmit={handleCreateVehicle} className="space-y-4">
               <div>
@@ -1163,7 +1163,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Owner Name</label>
                   <input
@@ -1218,7 +1218,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
       {/* QUICK ADD CLIENT MODAL */}
       {showClientModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-slate-900 mb-4 font-display">Add New Client (Consignee Billed)</h3>
             <form onSubmit={handleCreateClient} className="space-y-3.5">
               <div>
@@ -1232,7 +1232,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-brand-navy"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700 uppercase">GSTIN (15 Chars)</label>
@@ -1280,7 +1280,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700 uppercase">Contact Phone (10 Digits)</label>

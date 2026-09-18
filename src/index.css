@@ -3,11 +3,25 @@
 @tailwind utilities;
 
 @layer base {
+  html, body, #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
   body {
     background-color: #F7F8FA;
     color: #1e293b;
     -webkit-font-smoothing: antialiased;
+    -webkit-overflow-scrolling: touch;
   }
+}
+
+/* Hide scrollbar for mobile filter chips while keeping scrollability */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Custom scrollbar */

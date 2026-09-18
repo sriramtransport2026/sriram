@@ -348,14 +348,14 @@ export function DirectInvoiceEntry({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
       {/* Top Header Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-slate-200/70">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center space-x-2 text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition"
+            className="inline-flex items-center space-x-2 text-xs sm:text-sm font-bold text-brand-navy hover:text-brand-navy-light px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition"
           >
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Back to Dashboard</span>
@@ -370,11 +370,11 @@ export function DirectInvoiceEntry({
         </div>
 
         <div className="text-left sm:text-right">
-          <div className="inline-flex items-center space-x-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
+          <div className="inline-flex items-center space-x-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
             <Zap className="w-3 h-3 text-indigo-600" />
             <span>Fast-Track Direct Billing</span>
           </div>
-          <h2 className="text-2xl font-black text-brand-navy font-display tracking-tight mt-1">
+          <h2 className="text-lg sm:text-2xl font-black text-brand-navy font-display tracking-tight mt-0.5 sm:mt-1">
             Direct Invoice Entry
           </h2>
           <p className="text-xs text-slate-500 font-medium">
@@ -870,16 +870,16 @@ export function DirectInvoiceEntry({
 
       {/* SUCCESS POST-GENERATION MODAL */}
       {generatedResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 animate-scale-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-8 shadow-2xl border border-slate-100 space-y-4 sm:space-y-6 max-h-[90vh] overflow-y-auto animate-scale-up">
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
                 Direct Invoice Generated Successfully!
               </span>
-              <h3 className="text-xl font-black text-brand-navy font-display">
+              <h3 className="text-lg sm:text-xl font-black text-brand-navy font-display">
                 Invoice #{generatedResult.invoice?.invoice_number}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -888,7 +888,7 @@ export function DirectInvoiceEntry({
             </div>
 
             {/* Metric snapshot */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="bg-slate-50 rounded-2xl p-3 sm:p-4 border border-slate-200/80 grid grid-cols-3 gap-2 text-center text-xs">
               <div>
                 <span className="text-slate-400 text-[10px] uppercase block">Client</span>
                 <span className="font-bold text-slate-800 truncate block">{generatedResult.client?.name || 'Client'}</span>
@@ -912,14 +912,14 @@ export function DirectInvoiceEntry({
                     onNavigateToPayments(generatedResult.trips[0]?.id);
                   }
                 }}
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-bold text-xs shadow-md hover:shadow-lg flex items-center justify-center space-x-2 transition cursor-pointer"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-bold text-xs shadow-md hover:shadow-lg flex items-center justify-center space-x-2 transition cursor-pointer"
               >
                 <CreditCard className="w-4 h-4 text-indigo-200" />
                 <span>Go Directly to Payments & Record Settlement</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setShowPrintModal(true)}
@@ -963,8 +963,8 @@ export function DirectInvoiceEntry({
 
       {/* QUICK ADD VEHICLE MODAL */}
       {showVehicleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-sm">Quick Add Vehicle to Fleet</h3>
               <button
@@ -983,17 +983,17 @@ export function DirectInvoiceEntry({
                   required
                   value={newVehicle.vehicle_number}
                   onChange={(e) => setNewVehicle(prev => ({ ...prev, vehicle_number: e.target.value.toUpperCase() }))}
-                  placeholder="TN-70-AB-1234"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold"
+                  placeholder="e.g. KA01AB5401 or TN70AP3051"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-semibold"
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Vehicle Type</label>
+                <label className="block font-bold text-slate-700 mb-1">Body Type</label>
                 <input
                   type="text"
                   value={newVehicle.vehicle_type}
                   onChange={(e) => setNewVehicle(prev => ({ ...prev, vehicle_type: e.target.value }))}
-                  placeholder="19FT / 32FT / Taurus"
+                  placeholder="e.g. 19FT-SA-IIMT, 22FT-TB-10MT"
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200"
                 />
               </div>
@@ -1050,8 +1050,8 @@ export function DirectInvoiceEntry({
 
       {/* QUICK ADD CLIENT MODAL */}
       {showClientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-base font-display">Add New Client (Consignee Billed)</h3>
               <button
@@ -1074,7 +1074,7 @@ export function DirectInvoiceEntry({
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:bg-white focus:border-brand-navy focus:outline-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700 uppercase">GSTIN (15 Chars)</label>
@@ -1122,7 +1122,7 @@ export function DirectInvoiceEntry({
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700 uppercase">Contact Phone (10 Digits)</label>

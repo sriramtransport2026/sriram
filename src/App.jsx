@@ -13,6 +13,7 @@ import { UserManagementView } from './components/UserManagementView';
 import { PaymentsView } from './components/PaymentsView';
 import { DirectInvoiceEntry } from './components/DirectInvoiceEntry';
 import { CompanySelectionModal } from './components/CompanySelectionModal';
+import { UserLogsView } from './components/UserLogsView';
 import logoImg from './assets/logo.png';
 
 export function App() {
@@ -32,6 +33,7 @@ export function App() {
   const [trips, setTrips] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [userLogs, setUserLogs] = useState([]);
   const [selectedPaymentTripId, setSelectedPaymentTripId] = useState(null);
   const [companySettings, setCompanySettings] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,13 +48,14 @@ export function App() {
       if (freshUser) {
         setCurrentUser(freshUser);
       }
-      const [cList, vList, tList, invList, pList, setts] = await Promise.all([
+      const [cList, vList, tList, invList, pList, setts, logsList] = await Promise.all([
         db.getClients(),
         db.getVehicles(),
         db.getTrips(),
         db.getInvoices(),
         db.getPayments(),
         db.getCompanySettings(activeCompanyGstin),
+        db.getUserLogs(),
       ]);
       setClients(cList);
       setVehicles(vList);
@@ -60,6 +63,7 @@ export function App() {
       setInvoices(invList);
       setPayments(pList);
       setCompanySettings(setts);
+      setUserLogs(logsList || []);
     } catch (err) {
       console.error('Failed to load application data', err);
     } finally {
@@ -271,6 +275,16 @@ export function App() {
     loadAllData();
   };
 
+  const handleRefreshLogs = async () => {
+    const freshLogs = await db.getUserLogs();
+    setUserLogs(freshLogs);
+  };
+
+  const handleClearLogs = async () => {
+    await db.clearUserLogs();
+    setUserLogs([]);
+  };
+
   const handleLogout = () => {
     db.logout();
     setCurrentUser(null);
@@ -313,9 +327,9 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-bg text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-brand-bg text-slate-800 flex flex-col font-sans w-full max-w-full overflow-x-hidden min-w-0">
       {/* Module Views Router (Full screen per module, no shared top navbar) */}
-      <main className="flex-1">
+      <main className="flex-1 w-full min-w-0">
         {currentView === 'dashboard' && (
           <Dashboard
             onNavigate={handleNavigate}
@@ -446,6 +460,18 @@ export function App() {
             }}
             activeCompanyGstin={activeCompanyGstin}
             activeCompany={activeCompany}
+          />
+        )}
+
+        {currentView === 'user-logs' && (
+          <UserLogsView
+            onBack={() => setCurrentView('dashboard')}
+            logs={userLogs}
+            users={db.getAvailableUsers()}
+            companySettings={activeCompany}
+            currentUser={currentUser}
+            onRefreshLogs={handleRefreshLogs}
+            onClearLogs={handleClearLogs}
           />
         )}
       </main>

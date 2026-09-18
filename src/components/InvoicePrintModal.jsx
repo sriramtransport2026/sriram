@@ -23,38 +23,38 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-2 sm:p-6 overflow-y-auto animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full my-auto overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-1.5 sm:p-6 overflow-y-auto animate-fade-in">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-4xl w-full my-auto overflow-hidden border border-slate-200 flex flex-col max-h-[95vh] sm:max-h-[92vh]">
         {/* Modal Action Header (Hidden in Print) */}
-        <div className="no-print bg-brand-navy text-white px-6 py-4 flex items-center justify-between shrink-0 border-b border-brand-navy-light/40">
-          <div className="flex items-center space-x-3">
-            <div className="bg-white p-1.5 rounded-lg shrink-0">
-              <img src={logoImg} alt="Sri Ram Transport" className="h-7 w-auto object-contain" />
+        <div className="no-print bg-brand-navy text-white px-3 sm:px-6 py-2.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0 border-b border-brand-navy-light/40">
+          <div className="flex items-center space-x-2.5 sm:space-x-3">
+            <div className="bg-white p-1 rounded-lg shrink-0">
+              <img src={logoImg} alt="Sri Ram Transport" className="h-6 sm:h-7 w-auto object-contain" />
             </div>
             <div>
-              <h3 className="font-bold text-base tracking-wide font-display">Tax Invoice Document Preview</h3>
-              <p className="text-xs text-brand-gold-light">GST Reverse-Charge Invoice: {invoice.invoice_number}</p>
+              <h3 className="font-bold text-sm sm:text-base tracking-wide font-display">Tax Invoice Document Preview</h3>
+              <p className="text-[10px] sm:text-xs text-brand-gold-light truncate max-w-[200px] sm:max-w-none">GST Reverse-Charge: {invoice.invoice_number}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 justify-end">
             <button
               onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-brand-navy-dark hover:bg-brand-navy-light text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition border border-brand-navy-light/50"
+              className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-brand-navy-dark hover:bg-brand-navy-light text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition border border-brand-navy-light/50"
             >
-              <Printer className="w-4 h-4 text-brand-gold" />
-              <span>Print Invoice</span>
+              <Printer className="w-3.5 h-3.5 text-brand-gold" />
+              <span>Print</span>
             </button>
             <button
               onClick={handleDownloadPDF}
-              className="px-4 py-1.5 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy font-black rounded-xl text-xs flex items-center space-x-1.5 transition shadow-sm"
+              className="px-3 sm:px-4 py-1 sm:py-1.5 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy font-black rounded-xl text-xs flex items-center space-x-1.5 transition shadow-sm"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5" />
               <span>Download PDF</span>
             </button>
             <button
               onClick={onClose}
-              className="text-slate-300 hover:text-white p-1.5 rounded-lg transition ml-2"
+              className="text-slate-300 hover:text-white p-1 sm:p-1.5 rounded-lg transition ml-1"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />
@@ -63,10 +63,10 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
         </div>
 
         {/* Scrollable Printable Invoice Content */}
-        <div className="overflow-y-auto p-4 sm:p-8 bg-slate-100/60 flex justify-center">
+        <div className="overflow-y-auto overflow-x-auto p-2 sm:p-8 bg-slate-100/60 flex justify-start sm:justify-center">
           <div 
             id="printable-invoice" 
-            className="bg-white border border-slate-400 rounded-none shadow-sm p-6 sm:p-8 w-full max-w-[210mm] text-slate-900 font-sans text-xs space-y-4"
+            className="bg-white border border-slate-400 rounded-none shadow-sm p-4 sm:p-8 w-full min-w-[320px] max-w-[210mm] text-slate-900 font-sans text-xs space-y-4 mx-auto"
           >
             {/* Header Box with Official Logo */}
             <div className="border border-slate-700 p-4 relative space-y-3">
@@ -138,8 +138,8 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
             </div>
 
             {/* Trips Table */}
-            <div className="border border-slate-700 overflow-hidden">
-              <table className="w-full text-left text-[10px] border-collapse">
+            <div className="border border-slate-700 overflow-x-auto w-full">
+              <table className="w-full min-w-[650px] text-left text-[10px] border-collapse">
                 <thead className="bg-slate-100 border-b border-slate-700 font-bold text-slate-900 text-center uppercase tracking-wider text-[9.5px]">
                   <tr>
                     <th className="border-r border-slate-700 py-2.5 px-1.5 w-10 text-center">SNO</th>

@@ -29,7 +29,8 @@ import {
   Sparkles,
   ShieldAlert,
   CreditCard,
-  Zap
+  Zap,
+  ClipboardList
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import { db } from '../services/db';
@@ -44,6 +45,7 @@ const ALL_SYSTEM_MODULES = [
   { id: 'reports', label: 'Reports & P&L', icon: TrendingUp, description: 'Profit margins, freight billed vs paid' },
   { id: 'payments', label: 'Payments & Settlements', icon: CreditCard, description: 'Advance, Half Payment & Full Payment tracking with Cash/Online UTR' },
   { id: 'settings', label: 'Settings & Profile', icon: Settings, description: 'Branch coordinates & tax configuration' },
+  { id: 'user-logs', label: 'User Activity Logs', icon: ClipboardList, description: 'Audit trail of user logins, operations & database history' },
 ];
 
 export function UserManagementView({ 
@@ -354,11 +356,11 @@ export function UserManagementView({
   const adminCount = firmUsers.filter(u => u.role === 'admin').length;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in font-sans">
       
       {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-200/70">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={onBack}
@@ -367,14 +369,14 @@ export function UserManagementView({
             <ArrowLeft className="w-4 h-4 text-brand-gold-dark" />
             <span>Dashboard</span>
           </button>
-          <div className="h-6 w-[1px] bg-slate-200" />
+          <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
           <div className="flex items-center space-x-3">
             <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm">
               <img src={logoImg} alt="Sri Ram Transport" className="h-7 w-auto object-contain" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-xl font-black text-brand-navy tracking-tight font-display">
+                <h1 className="text-lg sm:text-xl font-black text-brand-navy tracking-tight font-display">
                   User Management & Role Permissions
                 </h1>
                 <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-extrabold uppercase tracking-wider">
@@ -403,7 +405,7 @@ export function UserManagementView({
         <button
           type="button"
           onClick={handleOpenCreateModal}
-          className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-brand-navy hover:bg-brand-navy-dark text-white font-bold text-xs shadow-md hover:shadow-lg transition-all cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-brand-navy hover:bg-brand-navy-dark text-white font-bold text-xs shadow-md hover:shadow-lg transition-all cursor-pointer"
         >
           <UserPlus className="w-4 h-4 text-brand-gold" />
           <span>Create New User</span>
@@ -412,7 +414,7 @@ export function UserManagementView({
 
       {/* Notification Banner */}
       {notification.message && (
-        <div className={`p-4 rounded-xl flex items-center space-x-3 text-sm font-semibold animate-fade-in ${
+        <div className={`p-3.5 sm:p-4 rounded-xl flex items-center space-x-3 text-sm font-semibold animate-fade-in ${
           notification.type === 'success' 
             ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
             : 'bg-rose-50 text-rose-800 border border-rose-200'
@@ -427,62 +429,62 @@ export function UserManagementView({
       )}
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Users</span>
-            <div className="p-2 rounded-xl bg-slate-100 text-brand-navy">
-              <Users className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Total Users</span>
+            <div className="p-1.5 sm:p-2 rounded-xl bg-slate-100 text-brand-navy">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline space-x-2">
-            <span className="text-2xl font-black text-brand-navy font-display">{totalUsersCount}</span>
-            <span className="text-xs text-slate-500 font-medium">Registered</span>
+          <div className="mt-1 sm:mt-2 flex items-baseline space-x-2">
+            <span className="text-xl sm:text-2xl font-black text-brand-navy font-display">{totalUsersCount}</span>
+            <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Registered</span>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Active Accounts</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
-              <CheckCircle2 className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider">Active Accounts</span>
+            <div className="p-1.5 sm:p-2 rounded-xl bg-emerald-50 text-emerald-700">
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline space-x-2">
-            <span className="text-2xl font-black text-emerald-700 font-display">{activeUsersCount}</span>
-            <span className="text-xs text-slate-500 font-medium">Can Log In</span>
+          <div className="mt-1 sm:mt-2 flex items-baseline space-x-2">
+            <span className="text-xl sm:text-2xl font-black text-emerald-700 font-display">{activeUsersCount}</span>
+            <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Can Log In</span>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Company-Restricted</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
-              <Building2 className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-bold text-blue-600 uppercase tracking-wider">Company-Restricted</span>
+            <div className="p-1.5 sm:p-2 rounded-xl bg-blue-50 text-blue-700">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline space-x-2">
-            <span className="text-2xl font-black text-blue-700 font-display">{companyRestrictedCount}</span>
-            <span className="text-xs text-slate-500 font-medium">Dedicated Clients</span>
+          <div className="mt-1 sm:mt-2 flex items-baseline space-x-2">
+            <span className="text-xl sm:text-2xl font-black text-blue-700 font-display">{companyRestrictedCount}</span>
+            <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Dedicated</span>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-brand-gold-dark uppercase tracking-wider">Administrators</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-brand-gold-dark">
-              <ShieldCheck className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-bold text-brand-gold-dark uppercase tracking-wider">Administrators</span>
+            <div className="p-1.5 sm:p-2 rounded-xl bg-amber-50 text-brand-gold-dark">
+              <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline space-x-2">
-            <span className="text-2xl font-black text-brand-navy font-display">{adminCount}</span>
-            <span className="text-xs text-slate-500 font-medium">Super Users</span>
+          <div className="mt-1 sm:mt-2 flex items-baseline space-x-2">
+            <span className="text-xl sm:text-2xl font-black text-brand-navy font-display">{adminCount}</span>
+            <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Super Users</span>
           </div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-soft flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-soft flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -529,8 +531,8 @@ export function UserManagementView({
 
       {/* Users Table */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto w-full min-w-0">
+          <table className="w-full text-left border-collapse min-w-[780px]">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black tracking-wider text-slate-500 uppercase">
                 <th className="py-4 px-6">User Profile</th>
@@ -721,8 +723,8 @@ export function UserManagementView({
           MODAL: ADD / EDIT USER
          ========================================================================= */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 space-y-6 animate-scale-up my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 lg:p-8 border border-slate-200 space-y-4 sm:space-y-6 animate-scale-up my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
             
             {/* Modal Header */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-200">
@@ -1063,8 +1065,8 @@ export function UserManagementView({
           MODAL: RESET USER PASSWORD
          ========================================================================= */}
       {isPasswordModalOpen && passwordTargetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-5 animate-scale-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-4 sm:p-6 border border-slate-200 space-y-4 sm:space-y-5 animate-scale-up max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3">

@@ -210,8 +210,8 @@ export function LRUploadModal({ trip, isOpen, onClose, onSuccess }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fade-in">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200/80 animate-scale-up">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-y-auto">
+        <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto border border-slate-200/80 animate-scale-up my-auto">
           
           {/* Top Header with Corporate Navy Branding */}
           <div className="bg-gradient-to-r from-brand-navy via-slate-900 to-brand-navy text-white px-6 py-4 flex items-center justify-between border-b border-white/10">

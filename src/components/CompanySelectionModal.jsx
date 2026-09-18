@@ -28,8 +28,8 @@ export function CompanySelectionModal({ isOpen, onClose, activeGstin, onSelectCo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-6 sm:p-10 border border-slate-200 space-y-8 animate-scale-up relative overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-4 sm:p-8 lg:p-10 border border-slate-200 space-y-5 sm:space-y-8 animate-scale-up relative overflow-hidden max-h-[90vh] overflow-y-auto my-auto">
         
         {/* Background glow styling */}
         <div className="absolute -top-32 -right-32 w-80 h-80 bg-brand-navy rounded-full blur-3xl opacity-10 pointer-events-none" />
