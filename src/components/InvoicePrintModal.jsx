@@ -4,7 +4,7 @@ import { generateInvoicePDF } from '../utils/invoicePdfGenerator';
 import { numberToIndianWords } from '../utils/numberToWords';
 import logoImg from '../assets/logo.png';
 
-export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = [], companySettings }) {
+export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = [], vehicles = [], companySettings }) {
   if (!isOpen || !invoice) return null;
 
   const subTotal = invoice.sub_total || trips.reduce((acc, t) => acc + (parseFloat(t.freight_amount) || 0), 0);
@@ -14,7 +14,7 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
   const words = numberToIndianWords(netAmount);
 
   const handleDownloadPDF = () => {
-    const doc = generateInvoicePDF({ invoice, client, trips, companySettings, logoUrl: logoImg });
+    const doc = generateInvoicePDF({ invoice, client, trips, vehicles, companySettings, logoUrl: logoImg });
     doc.save(`${invoice.invoice_number.replace(/\//g, '_')}.pdf`);
   };
 
@@ -138,75 +138,134 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
             </div>
 
             {/* Trips Table */}
-            <div className="border border-slate-700 overflow-x-auto w-full">
-              <table className="w-full min-w-[650px] text-left text-[10px] border-collapse">
-                <thead className="bg-slate-100 border-b border-slate-700 font-bold text-slate-900 text-center uppercase tracking-wider text-[9.5px]">
-                  <tr>
-                    <th className="border-r border-slate-700 py-2.5 px-1.5 w-10 text-center">SNO</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-center w-22">DATE</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-center w-22">LRNO</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-center w-24">VEHICLE NO</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-left">FROM</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-left">TO</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-right w-20">RATE</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">AMOUNT</th>
-                    <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">OTHER CHARGES</th>
-                    <th className="py-2.5 px-2.5 text-right w-24">TOTAL</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-300">
-                  {trips.map((t, idx) => {
-                    const charged = parseFloat(t.charged_weight) || 0;
-                    const rate = parseFloat(t.rate) || 0;
-                    const totalFreight = parseFloat(t.freight_amount) || 0;
-                    const baseAmount = (charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight;
+            {(() => {
+              const hasOtherCharges = (trips || []).some(t => {
+                let otherNet = 0;
+                if (t.has_loading_unloading === 'yes' && t.loading_unloading_amount) {
+                  otherNet -= (parseFloat(t.loading_unloading_amount) || 0);
+                }
+                if (Array.isArray(t.other_charges)) {
+                  t.other_charges.forEach(c => {
+                    const a = parseFloat(c.amount) || 0;
+                    if (c.type === 'add') otherNet += a;
+                    else if (c.type === 'subtract') otherNet -= a;
+                  });
+                }
+                const charged = parseFloat(t.charged_weight) || 0;
+                const rate = parseFloat(t.rate) || 0;
+                const totalFreight = parseFloat(t.freight_amount) || 0;
+                const baseAmount = (charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight;
+                if (otherNet === 0 && Math.abs(totalFreight - baseAmount) > 0.01) {
+                  otherNet = totalFreight - baseAmount;
+                }
+                return Math.abs(otherNet) > 0.01;
+              });
 
-                    let otherChargesNet = 0;
-                    if (t.has_loading_unloading === 'yes' && t.loading_unloading_amount) {
-                      otherChargesNet -= (parseFloat(t.loading_unloading_amount) || 0);
-                    }
-                    if (Array.isArray(t.other_charges)) {
-                      t.other_charges.forEach(c => {
-                        const a = parseFloat(c.amount) || 0;
-                        if (c.type === 'add') otherChargesNet += a;
-                        else if (c.type === 'subtract') otherChargesNet -= a;
-                      });
-                    }
-                    if (otherChargesNet === 0 && Math.abs(totalFreight - baseAmount) > 0.01) {
-                      otherChargesNet = totalFreight - baseAmount;
-                    }
-
-                    return (
-                      <tr key={t.id || idx} className="hover:bg-slate-50/50">
-                        <td className="border-r border-slate-700 py-2 px-1.5 text-center font-bold text-slate-700">{idx + 1}</td>
-                        <td className="border-r border-slate-700 py-2 px-2 text-center font-mono whitespace-nowrap text-slate-800">{t.loading_date || '-'}</td>
-                        <td className="border-r border-slate-700 py-2 px-2 text-center font-mono font-black text-brand-navy">{t.lr_number || t.load_id || '-'}</td>
-                        <td className="border-r border-slate-700 py-2 px-2 text-center font-mono font-bold text-slate-800">{t.vehicle?.vehicle_number || '-'}</td>
-                        <td className="border-r border-slate-700 py-2 px-2 font-medium uppercase text-slate-700">{t.from_location || 'BANGALORE'}</td>
-                        <td className="border-r border-slate-700 py-2 px-2 font-bold uppercase text-slate-900">{t.to_location || '-'}</td>
-                        <td className="border-r border-slate-700 py-2 px-2 text-right font-mono text-slate-800">
-                          {rate > 0 ? Number(rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '-'}
-                        </td>
-                        <td className="border-r border-slate-700 py-2 px-2 text-right font-mono font-semibold text-slate-800">
-                          ₹{Number(baseAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="border-r border-slate-700 py-2 px-2 text-right font-mono">
-                          {otherChargesNet === 0 ? (
-                            <span className="text-slate-400">0.00</span>
-                          ) : otherChargesNet < 0 ? (
-                            <span className="text-rose-700 font-bold">&minus;₹{Math.abs(otherChargesNet).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                          ) : (
-                            <span className="text-emerald-700 font-bold">+₹{otherChargesNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-2.5 text-right font-mono font-black text-brand-navy">
-                          ₹{Number(totalFreight).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
+              return (
+                <div className="border border-slate-700 overflow-x-auto w-full">
+                  <table className="w-full min-w-[680px] text-left text-[10px] border-collapse">
+                    <thead className="bg-slate-100 border-b border-slate-700 font-bold text-slate-900 text-center uppercase tracking-wider text-[9.5px]">
+                      <tr>
+                        <th className="border-r border-slate-700 py-2.5 px-1.5 w-10 text-center">SNO</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-center w-22">DATE</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-center w-22">LRNO</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-center w-24">VEHICLE NO</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-left">FROM</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-left">TO</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-right w-28">RATE</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">AMOUNT</th>
+                        {hasOtherCharges && (
+                          <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">OTHER CHARGES</th>
+                        )}
+                        <th className="py-2.5 px-2.5 text-right w-24">TOTAL</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-300">
+                      {trips.map((t, idx) => {
+                        const charged = parseFloat(t.charged_weight) || 0;
+                        const rate = parseFloat(t.rate) || 0;
+                        const totalFreight = parseFloat(t.freight_amount) || 0;
+                        const baseAmount = (charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight;
+
+                        let otherChargesNet = 0;
+                        if (t.has_loading_unloading === 'yes' && t.loading_unloading_amount) {
+                          otherChargesNet -= (parseFloat(t.loading_unloading_amount) || 0);
+                        }
+                        if (Array.isArray(t.other_charges)) {
+                          t.other_charges.forEach(c => {
+                            const a = parseFloat(c.amount) || 0;
+                            if (c.type === 'add') otherChargesNet += a;
+                            else if (c.type === 'subtract') otherChargesNet -= a;
+                          });
+                        }
+                        if (otherChargesNet === 0 && Math.abs(totalFreight - baseAmount) > 0.01) {
+                          otherChargesNet = totalFreight - baseAmount;
+                        }
+
+                        // Format Rate with unit beside it: e.g. mt (100) or fixed(100)
+                        const rateNum = Number(rate);
+                        const rateFormatted = rateNum > 0 
+                          ? rateNum.toLocaleString('en-IN', { minimumFractionDigits: rateNum % 1 === 0 ? 0 : 2 }) 
+                          : '';
+
+                        let rateDisplay = '-';
+                        if (t.unit_type === 'fixed') {
+                          rateDisplay = rateFormatted ? `fixed (${rateFormatted})` : 'fixed';
+                        } else if (t.unit_type === 'custom') {
+                          const u = (t.custom_unit || 'custom').toLowerCase();
+                          rateDisplay = rateFormatted ? `${u} (${rateFormatted})` : u;
+                        } else {
+                          // default MT
+                          rateDisplay = rateFormatted ? `MT (${rateFormatted})` : (rateFormatted || '-');
+                        }
+
+                        // Strip any bracketed notes from vehicle number with fallback resolution
+                        let rawVehNo = t.vehicle?.vehicle_number || t.vehicle_number;
+                        if (!rawVehNo && t.vehicle_id) {
+                          const vList = (vehicles && vehicles.length > 0) ? vehicles : (() => {
+                            try { return JSON.parse(localStorage.getItem('srt_vehicles_v1') || '[]'); } catch(e) { return []; }
+                          })();
+                          const found = vList.find(v => v.id === t.vehicle_id);
+                          if (found) rawVehNo = found.vehicle_number;
+                        }
+                        const cleanVehNo = (rawVehNo || '-').replace(/\s*\(.*?\)/g, '');
+
+                        return (
+                          <tr key={t.id || idx} className="hover:bg-slate-50/50">
+                            <td className="border-r border-slate-700 py-2 px-1.5 text-center font-bold text-slate-700">{idx + 1}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 text-center font-mono whitespace-nowrap text-slate-800">{t.loading_date || '-'}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 text-center font-mono font-black text-brand-navy">{t.lr_number || t.load_id || '-'}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 text-center font-mono font-bold text-slate-800">{cleanVehNo}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 font-medium uppercase text-slate-700">{t.from_location || 'BANGALORE'}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 font-bold uppercase text-slate-900">{t.to_location || '-'}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
+                              {rateDisplay}
+                            </td>
+                            <td className="border-r border-slate-700 py-2 px-2 text-right font-mono font-semibold text-slate-800">
+                              ₹{Number(baseAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            {hasOtherCharges && (
+                              <td className="border-r border-slate-700 py-2 px-2 text-right font-mono">
+                                {otherChargesNet === 0 ? (
+                                  <span className="text-slate-400">0.00</span>
+                                ) : otherChargesNet < 0 ? (
+                                  <span className="text-rose-700 font-bold">&minus;₹{Math.abs(otherChargesNet).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                ) : (
+                                  <span className="text-emerald-700 font-bold">+₹{otherChargesNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                )}
+                              </td>
+                            )}
+                            <td className="py-2 px-2.5 text-right font-mono font-black text-brand-navy">
+                              ₹{Number(totalFreight).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
 
               {/* Subtotal & Net Amount Summary */}
               <div className="border-t border-slate-700 text-[11px] font-bold">
@@ -229,16 +288,17 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                 Amount In Words : <span className="font-black text-brand-navy">{words}</span>
               </div>
 
-              {/* Reverse Charge Statement */}
-              <div className="border-t border-slate-700 grid grid-cols-2 text-[10px] font-bold bg-white">
-                <div className="p-2 border-r border-slate-700">
-                  GST is payable on Reverse Charge: <span className="text-emerald-700 font-extrabold">Yes</span>
+              {/* Reverse Charge Statement (Only printed if reverse_charge is enabled) */}
+              {invoice?.reverse_charge !== false && (
+                <div className="border-t border-slate-700 grid grid-cols-2 text-[10px] font-bold bg-white">
+                  <div className="p-2 border-r border-slate-700">
+                    GST is payable on Reverse Charge: <span className="text-emerald-700 font-extrabold">Yes</span>
+                  </div>
+                  <div className="p-2 text-right">
+                    Amount of GST subject to Reverse Charge : <span className="font-mono font-bold">IGST 5% ₹{Number(gstAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
-                <div className="p-2 text-right">
-                  Amount of GST subject to Reverse Charge : <span className="font-mono font-bold">IGST 5% ₹{Number(gstAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
+              )}
 
             {/* Terms and Conditions */}
             <div className="space-y-1 text-[9.5px] text-slate-700 border-t border-slate-300 pt-3">

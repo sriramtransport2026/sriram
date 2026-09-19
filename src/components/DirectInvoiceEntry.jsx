@@ -23,7 +23,7 @@ import {
   X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { calculateProfit, db } from '../services/db';
+import { calculateProfit, db, getNextInvoiceNumber } from '../services/db';
 import { INDIAN_STATES } from '../utils/indianStates';
 import { 
   cleanPhone, isValidPhone, 
@@ -53,6 +53,7 @@ export function DirectInvoiceEntry({
   const [consignor, setConsignor] = useState('');
   const [consignee, setConsignee] = useState('');
   const [gstPercent, setGstPercent] = useState(companySettings?.default_gst_percent || 5.0);
+  const [reverseCharge, setReverseCharge] = useState(true);
   const [notes, setNotes] = useState('Direct Multi-Trip Consignment Invoice');
 
   // Quick Add Vehicle / Client Modals
@@ -74,9 +75,15 @@ export function DirectInvoiceEntry({
   // Auto-generate invoice number based on sequence
   useEffect(() => {
     const prefix = companySettings?.invoice_prefix || 'SRT-26-27/';
-    const nextSeq = (invoices.length + 114);
-    setInvoiceNumber(`${prefix}${nextSeq}`);
-  }, [invoices.length, companySettings?.invoice_prefix]);
+    const nextSeq = getNextInvoiceNumber(invoices, prefix);
+    setInvoiceNumber(nextSeq);
+  }, [invoices, companySettings?.invoice_prefix]);
+
+  // Check if invoice number is duplicate
+  const isInvoiceNumDuplicate = useMemo(() => {
+    if (!invoiceNumber.trim()) return false;
+    return invoices.some(i => i.invoice_number && i.invoice_number.trim().toLowerCase() === invoiceNumber.trim().toLowerCase());
+  }, [invoices, invoiceNumber]);
 
   // Sync client details when client selection changes
   const selectedClient = useMemo(() => {
@@ -102,6 +109,9 @@ export function DirectInvoiceEntry({
     to_location: defaultToLocation || '',
     packages: '',
     description: '',
+    invoice_number: '',
+    ref_invoice_number: '',
+    invoice_value: '',
     unit_type: 'MT', // 'MT' | 'kg' | 'boxes' | 'bags' | 'custom'
     custom_unit: '',
     charged_weight: '',
@@ -129,10 +139,14 @@ export function DirectInvoiceEntry({
       const updated = [...prev];
       const row = { ...updated[index], [field]: value };
 
+      if (field === 'unit_type' && value === 'fixed') {
+        row.charged_weight = '1';
+      }
+
       // Auto-compute freight_amount when weight or rate changes
-      if (field === 'charged_weight' || field === 'rate') {
-        const weight = parseFloat(field === 'charged_weight' ? value : row.charged_weight) || 0;
-        const rate = parseFloat(field === 'rate' ? value : row.rate) || 0;
+      if (field === 'charged_weight' || field === 'rate' || field === 'unit_type') {
+        const weight = parseFloat(row.charged_weight) || 0;
+        const rate = parseFloat(row.rate) || 0;
         if (weight > 0 && rate > 0) {
           row.freight_amount = (Math.round(weight * rate * 100) / 100).toString();
         }
@@ -294,17 +308,25 @@ export function DirectInvoiceEntry({
           ? `${t.charged_weight} ${t.unit_type === 'custom' ? (t.custom_unit || 'Units') : t.unit_type}`
           : '';
 
+        const vehObj = vehicles.find(v => v.id === t.vehicle_id) || null;
+        const vehNum = vehObj?.vehicle_number || '';
+
         return {
           load_id: t.load_id || ('220' + Math.floor(10000 + Math.random() * 90000)),
           lr_number: t.lr_number.trim() || ('LR-' + (t.load_id || Math.floor(10000 + Math.random() * 90000))),
           loading_date: t.loading_date || invoiceDate,
           vehicle_id: t.vehicle_id,
+          vehicle_number: vehNum,
+          vehicle: vehObj,
           from_location: t.from_location || defaultFromLocation,
           to_location: t.to_location,
           consignor,
           consignee: consignee || selectedClient?.name || 'Consignee',
           packages: finalPackages,
           description: t.description || 'Commercial Freight Cargo',
+          invoice_number: (t.invoice_number || t.ref_invoice_number || '').trim(),
+          invoice_no_ref: (t.invoice_number || t.ref_invoice_number || '').trim(),
+          invoice_value: parseFloat(t.invoice_value) || 0,
           unit_type: t.unit_type,
           custom_unit: t.custom_unit,
           actual_weight: parseFloat(t.charged_weight) || 0,
@@ -321,6 +343,7 @@ export function DirectInvoiceEntry({
         invoice_date: invoiceDate,
         gst_percent: parseFloat(gstPercent) || 5.0,
         notes,
+        reverse_charge: reverseCharge,
         trips: payloadTrips
       });
 
@@ -333,9 +356,21 @@ export function DirectInvoiceEntry({
         });
       } catch (e) {}
 
+      // Keep invoiceNumber synchronized in case backend auto-incremented to avoid collision
+      if (result?.invoice?.invoice_number) {
+        setInvoiceNumber(result.invoice.invoice_number);
+      }
+
       setGeneratedResult({
         invoice: result.invoice,
-        trips: result.trips,
+        trips: (result.trips || []).map(tr => {
+          const veh = tr.vehicle || vehicles.find(v => v.id === tr.vehicle_id) || null;
+          return {
+            ...tr,
+            vehicle: veh,
+            vehicle_number: tr.vehicle_number || veh?.vehicle_number || ''
+          };
+        }),
         client: selectedClient
       });
 
@@ -378,7 +413,7 @@ export function DirectInvoiceEntry({
             Direct Invoice Entry
           </h2>
           <p className="text-xs text-slate-500 font-medium">
-            Single-entry multi-trip creation — deposits directly into Completed & routes to Payments
+            Single-entry multi-trip consignment creation and instant invoice generation
           </p>
         </div>
       </div>
@@ -478,15 +513,33 @@ export function DirectInvoiceEntry({
 
             {/* Invoice Number */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">Direct Invoice Number *</label>
+              <label className="block text-xs font-bold text-slate-700">Invoice # *</label>
               <input
                 type="text"
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="SRT-26-27/115"
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-bold text-brand-navy font-mono focus:bg-white focus:border-brand-navy transition"
+                placeholder="SRT-26-27/121"
+                className={`w-full px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold font-mono focus:bg-white focus:border-brand-navy transition ${
+                  isInvoiceNumDuplicate ? 'bg-rose-50 border-rose-400 text-rose-800' : 'bg-slate-50 border-slate-200 text-brand-navy'
+                }`}
               />
-              <span className="text-[10px] text-slate-400 block">Auto-sequenced or customize</span>
+              {isInvoiceNumDuplicate ? (
+                <div className="flex items-center justify-between text-[11px] text-rose-600 font-bold pt-0.5">
+                  <span>⚠️ Already used in system</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prefix = companySettings?.invoice_prefix || 'SRT-26-27/';
+                      setInvoiceNumber(getNextInvoiceNumber(invoices, prefix));
+                    }}
+                    className="underline text-brand-navy hover:text-brand-gold-dark cursor-pointer"
+                  >
+                    Use Next Available ({getNextInvoiceNumber(invoices, companySettings?.invoice_prefix || 'SRT-26-27/')})
+                  </button>
+                </div>
+              ) : (
+                <span className="text-[10px] text-slate-400 block">Auto-sequenced or customize</span>
+              )}
             </div>
 
             {/* Invoice Date */}
@@ -517,7 +570,7 @@ export function DirectInvoiceEntry({
 
             {/* Consignee / Delivery Target */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">Consignee Target (Optional)</label>
+              <label className="block text-xs font-bold text-slate-700">Consignee</label>
               <input
                 type="text"
                 value={consignee}
@@ -662,7 +715,7 @@ export function DirectInvoiceEntry({
                         <option value="">-- Select Lorry --</option>
                         {vehicles.map(v => (
                           <option key={v.id} value={v.id}>
-                            {v.vehicle_number} ({v.vehicle_type || 'Truck'})
+                            {v.vehicle_number}
                           </option>
                         ))}
                       </select>
@@ -727,34 +780,79 @@ export function DirectInvoiceEntry({
                       />
                     </div>
 
+                    {/* Ref Invoice No */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-slate-700">Invoice No</label>
+                      <input
+                        type="text"
+                        value={row.invoice_number || row.ref_invoice_number || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleUpdateTripRow(index, 'invoice_number', val);
+                          handleUpdateTripRow(index, 'ref_invoice_number', val);
+                        }}
+                        placeholder="e.g. INV-8821"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:border-brand-navy"
+                      />
+                    </div>
+
+                    {/* Invoice Value (₹) */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-slate-700">Invoice Value (₹)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={row.invoice_value || ''}
+                        onChange={(e) => handleUpdateTripRow(index, 'invoice_value', e.target.value)}
+                        placeholder="e.g. 150000"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-navy"
+                      />
+                    </div>
+
                     {/* Weight & Unit */}
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Charged Wt / Qty</label>
+                      <label className="block text-[11px] font-bold text-slate-700">
+                        {row.unit_type === 'fixed' ? 'Unit Type' : 'Charged Wt / Qty'}
+                      </label>
                       <div className="flex">
-                        <input
-                          type="number"
-                          step="any"
-                          value={row.charged_weight}
-                          onChange={(e) => handleUpdateTripRow(index, 'charged_weight', e.target.value)}
-                          placeholder="10.5"
-                          className="w-full px-3 py-2 rounded-l-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:border-brand-navy"
-                        />
+                        {row.unit_type !== 'fixed' && (
+                          <input
+                            type="number"
+                            step="any"
+                            value={row.charged_weight}
+                            onChange={(e) => handleUpdateTripRow(index, 'charged_weight', e.target.value)}
+                            placeholder="10.5"
+                            className="w-full px-3 py-2 rounded-l-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:border-brand-navy"
+                          />
+                        )}
                         <select
                           value={row.unit_type}
                           onChange={(e) => handleUpdateTripRow(index, 'unit_type', e.target.value)}
-                          className="px-2 py-2 rounded-r-xl bg-slate-100 border-y border-r border-slate-200 text-[11px] font-bold text-slate-700"
+                          className={`px-3 py-2 bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer ${
+                            row.unit_type === 'fixed' ? 'w-full rounded-xl' : 'rounded-r-xl border-y border-r'
+                          }`}
                         >
                           <option value="MT">MT</option>
-                          <option value="kg">kg</option>
-                          <option value="boxes">Boxes</option>
-                          <option value="bags">Bags</option>
+                          <option value="fixed">Fixed</option>
+                          <option value="custom">Custom</option>
                         </select>
                       </div>
+                      {row.unit_type === 'custom' && (
+                        <input
+                          type="text"
+                          value={row.custom_unit || ''}
+                          onChange={(e) => handleUpdateTripRow(index, 'custom_unit', e.target.value)}
+                          placeholder="Unit (e.g. Bundles)"
+                          className="w-full mt-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[10px] font-bold text-slate-800"
+                        />
+                      )}
                     </div>
 
                     {/* Rate per Unit */}
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Rate / Unit (₹)</label>
+                      <label className="block text-[11px] font-bold text-slate-700">
+                        {row.unit_type === 'fixed' ? 'Rate / fixed (₹)' : 'Rate / Unit (₹)'}
+                      </label>
                       <input
                         type="number"
                         step="any"
@@ -780,7 +878,9 @@ export function DirectInvoiceEntry({
 
                     {/* Vehicle Freight / Lorry Hire */}
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Lorry Hire (₹)</label>
+                      <label className="block text-[11px] font-bold text-slate-700">
+                        {row.unit_type === 'fixed' ? 'Lorry Rate / fixed (₹)' : 'Lorry Hire (₹)'}
+                      </label>
                       <input
                         type="number"
                         step="any"
@@ -824,11 +924,31 @@ export function DirectInvoiceEntry({
               <span className="text-[10px] text-amber-700 font-bold block">({summaryMetrics.marginPercent}%)</span>
             </div>
             <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 col-span-2 md:col-span-1">
-              <span className="text-[10px] uppercase font-bold text-indigo-700 block">GST 5% (Reverse Charge)</span>
+              <div className="flex items-center justify-between mb-1 gap-2">
+                <span className="text-[10px] uppercase font-bold text-indigo-700 block">Reverse Charge IGST (5%)</span>
+                <div className="inline-flex rounded-lg p-0.5 bg-indigo-100 border border-indigo-200 text-[10px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setReverseCharge(true)}
+                    className={`px-2 py-0.5 rounded-md transition ${reverseCharge ? 'bg-indigo-600 text-white shadow-xs' : 'text-indigo-700 hover:bg-indigo-200'}`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReverseCharge(false)}
+                    className={`px-2 py-0.5 rounded-md transition ${!reverseCharge ? 'bg-slate-600 text-white shadow-xs' : 'text-slate-600 hover:bg-indigo-200'}`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
               <span className="text-base font-black text-indigo-900">
-                ₹{Math.round(summaryMetrics.gstAmount).toLocaleString('en-IN')}
+                {reverseCharge ? `₹${Math.round(summaryMetrics.gstAmount).toLocaleString('en-IN')}` : '₹0 (None)'}
               </span>
-              <span className="text-[9px] text-indigo-600 block">Client Payable</span>
+              <span className="text-[9px] text-indigo-600 block">
+                {reverseCharge ? 'Client Payable (RCM Active)' : 'Reverse Charge Disabled'}
+              </span>
             </div>
           </div>
 
@@ -859,7 +979,7 @@ export function DirectInvoiceEntry({
                 ) : (
                   <>
                     <Zap className="w-4 h-4 text-brand-gold" />
-                    <span>Generate Direct Invoice & Route to Payments</span>
+                    <span>Generate & Save Direct Invoice</span>
                   </>
                 )}
               </button>
@@ -883,7 +1003,7 @@ export function DirectInvoiceEntry({
                 Invoice #{generatedResult.invoice?.invoice_number}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
-                All {generatedResult.trips?.length} consignment trips bypassed In-Transit, were logged as Completed, and are now available in Payments.
+                All {generatedResult.trips?.length} consignment loads have been saved and tax invoice #{generatedResult.invoice?.invoice_number} is ready.
               </p>
             </div>
 
@@ -907,31 +1027,30 @@ export function DirectInvoiceEntry({
             <div className="space-y-2.5 pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  if (onNavigateToPayments) {
-                    onNavigateToPayments(generatedResult.trips[0]?.id);
-                  }
-                }}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-bold text-xs shadow-md hover:shadow-lg flex items-center justify-center space-x-2 transition cursor-pointer"
+                onClick={() => setShowPrintModal(true)}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-navy to-brand-navy-dark hover:from-brand-navy-dark hover:to-slate-900 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg flex items-center justify-center space-x-2 transition cursor-pointer"
               >
-                <CreditCard className="w-4 h-4 text-indigo-200" />
-                <span>Go Directly to Payments & Record Settlement</span>
-                <ChevronRight className="w-4 h-4" />
+                <Printer className="w-4 h-4 text-brand-gold" />
+                <span>View / Print Invoice</span>
               </button>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowPrintModal(true)}
+                  onClick={() => {
+                    setGeneratedResult(null);
+                    onBack();
+                  }}
                   className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition cursor-pointer"
                 >
-                  <Printer className="w-3.5 h-3.5 text-brand-gold-dark" />
-                  <span>View / Print Invoice</span>
+                  <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Back to Dashboard</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
+                    setGeneratedResult(null);
                     if (onNavigateToStatusBoard) {
                       onNavigateToStatusBoard();
                     } else {
@@ -957,6 +1076,7 @@ export function DirectInvoiceEntry({
           invoice={generatedResult.invoice}
           client={generatedResult.client}
           trips={generatedResult.trips}
+          vehicles={vehicles}
           companySettings={companySettings}
         />
       )}

@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { 
   ArrowLeft, Search, CreditCard, Banknote, CheckCircle2, AlertCircle, Clock, 
-  Plus, Calendar, X, DollarSign, Receipt, Truck, MapPin, History, Info, ChevronRight
+  Plus, Calendar, X, DollarSign, Receipt, Truck, MapPin, History, Info, ChevronRight,
+  List, LayoutGrid
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import { cleanUTR, isValidUTR } from "../utils/validation";
@@ -15,6 +16,7 @@ export function PaymentsView({
   onSavePayment,
   initialSelectedTripId = null,
 }) {
+  const [viewMode, setViewMode] = useState("table"); // "table" | "cards"
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
@@ -61,13 +63,6 @@ export function PaymentsView({
     }
     return [];
   };
-
-  React.useEffect(() => {
-    if (initialSelectedTripId) {
-      const target = trips.find(t => t.id === initialSelectedTripId);
-      if (target) handleOpenPaymentModal(target);
-    }
-  }, [initialSelectedTripId, trips]);
 
   const tripsWithPayments = useMemo(() => {
     return trips.map(t => {
@@ -120,49 +115,37 @@ export function PaymentsView({
     });
   }, [trips, clients, payments]);
 
-  const pendingCount = tripsWithPayments.filter(t => t.status === "pending").length;
-  const advanceCount = tripsWithPayments.filter(t => t.status === "advance").length;
-  const halfCount = tripsWithPayments.filter(t => t.status === "half_payment").length;
-  const fullCount = tripsWithPayments.filter(t => t.status === "full_payment").length;
-
-  const filteredTrips = useMemo(() => {
-    return tripsWithPayments.filter(trip => {
-      if (activeTab !== "all" && trip.status !== activeTab) return false;
-      if (clientFilter !== "all" && trip.client_id !== clientFilter) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const match = (trip.load_id || "").toLowerCase().includes(q) || 
-                      (trip.lr_number || "").toLowerCase().includes(q) || 
-                      (trip.consignor || "").toLowerCase().includes(q) || 
-                      (trip.consignee || "").toLowerCase().includes(q) || 
-                      (trip.to_location || "").toLowerCase().includes(q) || 
-                      (trip.clientName || "").toLowerCase().includes(q);
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [tripsWithPayments, activeTab, clientFilter, searchQuery]);
-
-  const totalBilled = tripsWithPayments.reduce((acc, t) => acc + t.freightAmount, 0);
-  const totalCollected = tripsWithPayments.reduce((acc, t) => acc + t.totalPaidAmount, 0);
-  const totalBalance = tripsWithPayments.reduce((acc, t) => acc + t.balanceAmount, 0);
-
   const handleOpenPaymentModal = (trip, preferredType = null) => {
-    setSelectedTrip(trip);
+    if (!trip) return;
+    const freight = parseFloat(trip.freightAmount ?? trip.freight_amount) || 0;
+    const paid = parseFloat(trip.totalPaidAmount ?? trip.total_paid_amount) || 0;
+    const bal = trip.balanceAmount !== undefined 
+      ? parseFloat(trip.balanceAmount) 
+      : (trip.balance_amount !== undefined ? parseFloat(trip.balance_amount) : Math.max(0, freight - paid));
+
+    const normalizedTrip = {
+      ...trip,
+      freightAmount: freight,
+      totalPaidAmount: paid,
+      balanceAmount: bal,
+      clientName: trip.clientName || trip.consignor || "Client",
+    };
+
+    setSelectedTrip(normalizedTrip);
     setPaymentMode("online");
     setPaymentDate(new Date().toISOString().split("T")[0]);
-    setPayerName(trip.consignor || trip.clientName || "");
+    setPayerName(normalizedTrip.consignor || normalizedTrip.clientName || "");
     setUtrNumber("");
     setNotes("");
 
-    const remaining = trip.balanceAmount !== undefined ? trip.balanceAmount : Math.max(0, trip.freightAmount - trip.totalPaidAmount);
+    const remaining = bal;
 
     // Determine default payment type based on current stage
     let chosenType = preferredType;
     if (!chosenType) {
-      if (trip.hasHalfPayment || trip.status === "half_payment") {
+      if (normalizedTrip.hasHalfPayment || normalizedTrip.status === "half_payment") {
         chosenType = "full_payment";
-      } else if (trip.hasAdvancePayment || trip.status === "advance") {
+      } else if (normalizedTrip.hasAdvancePayment || normalizedTrip.status === "advance" || paid > 0) {
         chosenType = "half_payment";
       } else {
         chosenType = "advance";
@@ -174,31 +157,44 @@ export function PaymentsView({
     if (chosenType === "full_payment") {
       setAmount(remaining.toString());
     } else if (chosenType === "half_payment") {
-      // If advance was paid, half payment covers remaining half or 50% of original freight
-      const targetHalf = Math.round(trip.freightAmount * 0.5) - trip.totalPaidAmount;
+      const targetHalf = Math.round(freight * 0.5) - paid;
       const payVal = targetHalf > 0 ? targetHalf : Math.round(remaining / 2);
       setAmount(payVal.toString());
     } else {
-      // Advance ~40% of total freight
-      const advAmt = Math.round(trip.freightAmount * 0.4) || remaining;
+      const advAmt = Math.round(freight * 0.4) || remaining;
       setAmount(advAmt.toString());
     }
 
     setIsModalOpen(true);
   };
 
+  React.useEffect(() => {
+    if (initialSelectedTripId) {
+      const target = (tripsWithPayments || []).find(t => String(t.id) === String(initialSelectedTripId) || String(t.load_id) === String(initialSelectedTripId)) ||
+                     (trips || []).find(t => String(t.id) === String(initialSelectedTripId) || String(t.load_id) === String(initialSelectedTripId));
+      if (target) {
+        handleOpenPaymentModal(target);
+      }
+    }
+  }, [initialSelectedTripId, tripsWithPayments, trips]);
+
   const handlePaymentTypeChange = (type) => {
     setPaymentType(type);
     if (!selectedTrip) return;
-    const remaining = selectedTrip.balanceAmount !== undefined ? selectedTrip.balanceAmount : Math.max(0, selectedTrip.freightAmount - selectedTrip.totalPaidAmount);
+    const freight = parseFloat(selectedTrip.freightAmount ?? selectedTrip.freight_amount) || 0;
+    const paid = parseFloat(selectedTrip.totalPaidAmount ?? selectedTrip.total_paid_amount) || 0;
+    const remaining = selectedTrip.balanceAmount !== undefined 
+      ? parseFloat(selectedTrip.balanceAmount) 
+      : Math.max(0, freight - paid);
+
     if (type === "full_payment") {
       setAmount(remaining.toString());
     } else if (type === "half_payment") {
-      const targetHalf = Math.round(selectedTrip.freightAmount * 0.5) - selectedTrip.totalPaidAmount;
+      const targetHalf = Math.round(freight * 0.5) - paid;
       const payVal = targetHalf > 0 ? targetHalf : Math.round(remaining / 2);
       setAmount(payVal.toString());
     } else {
-      setAmount(Math.round(selectedTrip.freightAmount * 0.4 || remaining).toString());
+      setAmount((Math.round(freight * 0.4) || remaining).toString());
     }
   };
 
@@ -253,6 +249,63 @@ export function PaymentsView({
       setIsSaving(false);
     }
   };
+
+  // Filtered trips and KPI metrics calculation
+  const { filteredTrips, totalBilled, totalCollected, totalBalance, pendingCount, advanceCount, halfCount, fullCount } = useMemo(() => {
+    let billed = 0;
+    let collected = 0;
+    let balance = 0;
+    let pendingC = 0;
+    let advanceC = 0;
+    let halfC = 0;
+    let fullC = 0;
+
+    const list = tripsWithPayments.filter(trip => {
+      // 1. Tab filter
+      if (activeTab !== "all" && trip.status !== activeTab) return false;
+
+      // 2. Client filter
+      if (clientFilter !== "all" && trip.client_id !== clientFilter) return false;
+
+      // 3. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchId = (trip.load_id || "").toLowerCase().includes(q);
+        const matchLr = (trip.lr_number || "").toLowerCase().includes(q);
+        const matchClient = (trip.clientName || "").toLowerCase().includes(q);
+        const matchFrom = (trip.from_location || "").toLowerCase().includes(q);
+        const matchTo = (trip.to_location || "").toLowerCase().includes(q);
+        const matchConsignee = (trip.consignee || "").toLowerCase().includes(q);
+        if (!matchId && !matchLr && !matchClient && !matchFrom && !matchTo && !matchConsignee) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    tripsWithPayments.forEach(t => {
+      billed += t.freightAmount;
+      collected += t.totalPaidAmount;
+      balance += t.balanceAmount;
+
+      if (t.status === "full_payment" || t.balanceAmount <= 0) fullC++;
+      else if (t.status === "half_payment") halfC++;
+      else if (t.status === "advance") advanceC++;
+      else pendingC++;
+    });
+
+    return {
+      filteredTrips: list,
+      totalBilled: billed,
+      totalCollected: collected,
+      totalBalance: balance,
+      pendingCount: pendingC,
+      advanceCount: advanceC,
+      halfCount: halfC,
+      fullCount: fullC
+    };
+  }, [tripsWithPayments, activeTab, clientFilter, searchQuery]);
 
   const statusCfg = {
     pending: { label: "Pending", color: "bg-rose-50 text-rose-700 border-rose-300", icon: <Clock className="w-3 h-3" /> },
@@ -354,39 +407,157 @@ export function PaymentsView({
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              placeholder="Search Load ID, LR, Client, Route..." 
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy" 
-            />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 flex-1">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                placeholder="Search Load ID, LR, Client, Route..." 
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy" 
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-slate-500 shrink-0">Client:</span>
+              <select 
+                value={clientFilter} 
+                onChange={(e) => setClientFilter(e.target.value)} 
+                className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
+              >
+                <option value="all">All Clients ({clients.length})</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-bold text-slate-500 shrink-0">Client:</span>
-            <select 
-              value={clientFilter} 
-              onChange={(e) => setClientFilter(e.target.value)} 
-              className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
+
+          {/* Layout View Toggle (Table / Cards) */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                viewMode === 'table' 
+                  ? 'bg-white text-brand-navy shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
             >
-              <option value="all">All Clients ({clients.length})</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+              <List className="w-3.5 h-3.5" />
+              <span>Table</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                viewMode === 'cards' 
+                  ? 'bg-white text-brand-navy shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cards</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* TRIP CARDS */}
+      {/* TRIP RECORDS */}
       {filteredTrips.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-16 text-center space-y-3">
           <Receipt className="w-10 h-10 mx-auto text-slate-300" />
           <p className="font-bold text-slate-600">No payment records found</p>
           <p className="text-xs text-slate-400">Try changing the filter tab or search query.</p>
         </div>
+      ) : viewMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs min-w-[850px]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-3.5 px-4">Load # / LR</th>
+                  <th className="py-3.5 px-4">Date</th>
+                  <th className="py-3.5 px-4">Client</th>
+                  <th className="py-3.5 px-4">Route</th>
+                  <th className="py-3.5 px-4 text-right">Freight Billed</th>
+                  <th className="py-3.5 px-4 text-right">Total Paid</th>
+                  <th className="py-3.5 px-4 text-right">Balance Due</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4 text-center">History</th>
+                  <th className="py-3.5 px-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredTrips.map(trip => {
+                  const cfg = statusCfg[trip.status] || statusCfg.pending;
+                  const isSettled = trip.status === "full_payment" || trip.balanceAmount <= 0;
+                  return (
+                    <tr key={trip.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="font-mono text-sm">#{trip.load_id}</span>
+                          {trip.lr_number && (
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono text-[10px] font-bold border border-indigo-200">
+                              LR: {trip.lr_number}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">{trip.loading_date || '-'}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-800">{trip.clientName}</td>
+                      <td className="py-3.5 px-4 text-slate-600">{trip.from_location} → {trip.to_location}</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                        ₹{Number(trip.freightAmount).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-700">
+                        ₹{Number(trip.totalPaidAmount).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-rose-600">
+                        ₹{Number(trip.balanceAmount).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={"inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border " + cfg.color}>
+                          {cfg.icon}
+                          <span>{cfg.label}</span>
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenHistoryModal(trip)}
+                          className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer"
+                        >
+                          <History className="w-3 h-3 text-slate-500" />
+                          <span>History</span>
+                        </button>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {isSettled ? (
+                          <span className="inline-flex items-center space-x-1 text-emerald-700 font-bold text-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Settled</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPaymentModal(trip)}
+                            className="px-3 py-1 rounded-lg bg-brand-navy hover:bg-brand-navy-light text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center space-x-1"
+                          >
+                            <CreditCard className="w-3 h-3" />
+                            <span>Record Pay</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
+        /* CARDS VIEW */
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredTrips.map(trip => {
             const cfg = statusCfg[trip.status] || statusCfg.pending;
@@ -609,15 +780,15 @@ export function PaymentsView({
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 grid grid-cols-3 gap-3 text-center">
               <div>
                 <span className="text-[10px] font-bold uppercase text-slate-400">Total Billed</span>
-                <p className="text-sm font-black font-mono text-slate-900 mt-0.5">₹{selectedTrip.freightAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                <p className="text-sm font-black font-mono text-slate-900 mt-0.5">₹{(selectedTrip.freightAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase text-emerald-600">Paid So Far</span>
-                <p className="text-sm font-black font-mono text-emerald-700 mt-0.5">₹{selectedTrip.totalPaidAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                <p className="text-sm font-black font-mono text-emerald-700 mt-0.5">₹{(selectedTrip.totalPaidAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase text-rose-600">Balance Due</span>
-                <p className="text-sm font-black font-mono text-rose-700 mt-0.5">₹{selectedTrip.balanceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                <p className="text-sm font-black font-mono text-rose-700 mt-0.5">₹{(selectedTrip.balanceAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
               </div>
             </div>
 
@@ -794,7 +965,7 @@ export function PaymentsView({
                 <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 flex items-center justify-between text-xs">
                   <span className="font-semibold text-blue-900">Remaining Balance After Payment:</span>
                   <span className="font-mono font-black text-blue-900 text-sm">
-                    ₹{Math.max(0, selectedTrip.balanceAmount - parseFloat(amount)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{Math.max(0, (selectedTrip.balanceAmount || 0) - parseFloat(amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               )}

@@ -25,6 +25,7 @@ import confetti from 'canvas-confetti';
 import { numberToIndianWords } from '../utils/numberToWords';
 import { generateInvoicePDF } from '../utils/invoicePdfGenerator';
 import { InvoicePrintModal } from './InvoicePrintModal';
+import { getNextInvoiceNumber } from '../services/db';
 import logoImg from '../assets/logo.png';
 
 export function GenerateInvoice({ 
@@ -32,6 +33,7 @@ export function GenerateInvoice({
   clients = [], 
   trips = [], 
   invoices = [], 
+  vehicles = [],
   companySettings, 
   onGenerateInvoice,
   onDeleteInvoice 
@@ -42,6 +44,7 @@ export function GenerateInvoice({
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [notes, setNotes] = useState('');
+  const [reverseCharge, setReverseCharge] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
@@ -77,9 +80,9 @@ export function GenerateInvoice({
   // Auto-generate invoice number based on sequence
   useEffect(() => {
     const prefix = companySettings?.invoice_prefix || 'SRT-26-27/';
-    const nextSeq = (invoices.length + 114); // Matches 114 from sample invoice
-    setInvoiceNumber(`${prefix}${nextSeq}`);
-  }, [invoices.length, companySettings?.invoice_prefix]);
+    const nextSeq = getNextInvoiceNumber(invoices, prefix);
+    setInvoiceNumber(nextSeq);
+  }, [invoices, companySettings?.invoice_prefix]);
 
   const toggleTrip = (id) => {
     setSelectedTripIds(prev => 
@@ -133,6 +136,7 @@ export function GenerateInvoice({
         invoiceDate,
         gstPercent,
         notes,
+        reverse_charge: reverseCharge,
       });
 
       // Celebration effect
@@ -425,10 +429,35 @@ export function GenerateInvoice({
                 <span>Sub Total:</span>
                 <span className="font-bold text-slate-900">₹{subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between text-slate-600 border-t border-slate-200/60 pt-2">
-                <span>Reverse Charge IGST ({gstPercent}%):</span>
-                <span className="font-bold text-emerald-700">₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <div className="flex justify-between items-center text-slate-600 border-t border-slate-200/60 pt-2">
+                <span className="font-semibold text-slate-700">Reverse Charge IGST ({gstPercent}%):</span>
+                <div className="inline-flex rounded-lg p-0.5 bg-slate-200/80 border border-slate-300 text-[10px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setReverseCharge(true)}
+                    className={`px-2 py-0.5 rounded-md transition ${reverseCharge ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-300'}`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReverseCharge(false)}
+                    className={`px-2 py-0.5 rounded-md transition ${!reverseCharge ? 'bg-slate-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-300'}`}
+                  >
+                    No
+                  </button>
+                </div>
               </div>
+              {reverseCharge ? (
+                <div className="flex justify-between text-slate-500 text-[11px] pl-1">
+                  <span>IGST 5% Subject to RCM:</span>
+                  <span className="font-bold text-emerald-700">₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-500 italic pl-1">
+                  (RCM reverse charge will not be printed on invoice)
+                </div>
+              )}
               <div className="flex justify-between text-slate-900 font-extrabold text-sm border-t border-slate-300 pt-2">
                 <span>Net Billed Amount:</span>
                 <span className="text-brand-navy text-base">₹{netAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
@@ -702,6 +731,7 @@ export function GenerateInvoice({
         invoice={viewInvoiceModal.invoice}
         client={viewInvoiceModal.client}
         trips={viewInvoiceModal.trips}
+        vehicles={vehicles}
         companySettings={companySettings}
         onClose={() => setViewInvoiceModal(prev => ({ ...prev, isOpen: false }))}
       />

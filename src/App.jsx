@@ -253,7 +253,8 @@ export function App() {
   };
 
   // PAYMENT ACTIONS
-  const handleNavigateToPayments = (tripId) => {
+  const handleNavigateToPayments = (tripOrId) => {
+    const tripId = typeof tripOrId === 'object' && tripOrId !== null ? (tripOrId.id || tripOrId.load_id) : tripOrId;
     setSelectedPaymentTripId(tripId || null);
     setCurrentView('payments');
   };
@@ -385,6 +386,7 @@ export function App() {
             clients={accessibleClients}
             trips={accessibleTrips}
             invoices={accessibleInvoices}
+            vehicles={accessibleVehicles}
             companySettings={activeCompany}
             onGenerateInvoice={handleGenerateInvoice}
             onDeleteInvoice={handleDeleteInvoice}

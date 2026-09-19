@@ -156,7 +156,7 @@ export function ReportsView({ onBack, trips = [], clients = [], vehicles = [], c
             >
               <option value="all">All Vehicles ({vehicles.length})</option>
               {vehicles.map(v => (
-                <option key={v.id} value={v.id}>{v.vehicle_number} ({v.owner_name})</option>
+                <option key={v.id} value={v.id}>{v.vehicle_number}</option>
               ))}
             </select>
           </div>

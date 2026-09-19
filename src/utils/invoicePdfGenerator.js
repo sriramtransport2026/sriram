@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { numberToIndianWords } from './numberToWords';
 
-export function generateInvoicePDF({ invoice, client, trips, companySettings }) {
+export function generateInvoicePDF({ invoice, client, trips, vehicles = [], companySettings }) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -82,6 +82,29 @@ export function generateInvoicePDF({ invoice, client, trips, companySettings }) 
   doc.setFontSize(7.5);
   doc.text('Transportation charges as per detail given below:--', margin + 4, margin + 53);
 
+  // Check if any trip in this invoice has non-zero other charges
+  const hasOtherCharges = (trips || []).some(t => {
+    let otherNet = 0;
+    if (t.has_loading_unloading === 'yes' && t.loading_unloading_amount) {
+      otherNet -= (parseFloat(t.loading_unloading_amount) || 0);
+    }
+    if (Array.isArray(t.other_charges)) {
+      t.other_charges.forEach(c => {
+        const a = parseFloat(c.amount) || 0;
+        if (c.type === 'add') otherNet += a;
+        else if (c.type === 'subtract') otherNet -= a;
+      });
+    }
+    const charged = parseFloat(t.charged_weight) || 0;
+    const rate = parseFloat(t.rate) || 0;
+    const totalFreight = parseFloat(t.freight_amount) || 0;
+    const baseAmount = (charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight;
+    if (otherNet === 0 && Math.abs(totalFreight - baseAmount) > 0.01) {
+      otherNet = totalFreight - baseAmount;
+    }
+    return Math.abs(otherNet) > 0.01;
+  });
+
   // Table Data Preparation
   const tableRows = (trips || []).map((t, index) => {
     const charged = parseFloat(t.charged_weight) || 0;
@@ -110,36 +133,71 @@ export function generateInvoicePDF({ invoice, client, trips, companySettings }) 
       ? `-${Math.abs(otherChargesNet).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` 
       : `+${otherChargesNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-    return [
+    const rateNum = Number(rate);
+    const rateFormatted = rateNum > 0 
+      ? rateNum.toLocaleString('en-IN', { minimumFractionDigits: rateNum % 1 === 0 ? 0 : 2 }) 
+      : '';
+
+    let rateDisplay = '-';
+    if (t.unit_type === 'fixed') {
+      rateDisplay = rateFormatted ? `fixed (${rateFormatted})` : 'fixed';
+    } else if (t.unit_type === 'custom') {
+      const u = (t.custom_unit || 'custom').toLowerCase();
+      rateDisplay = rateFormatted ? `${u} (${rateFormatted})` : u;
+    } else {
+      rateDisplay = rateFormatted ? `MT (${rateFormatted})` : (rateFormatted || '-');
+    }
+
+    let rawVehNo = t.vehicle?.vehicle_number || t.vehicle_number;
+    if (!rawVehNo && t.vehicle_id) {
+      const vList = (vehicles && vehicles.length > 0) ? vehicles : (() => {
+        try { return JSON.parse(localStorage.getItem('srt_vehicles_v1') || '[]'); } catch(e) { return []; }
+      })();
+      const found = vList.find(v => v.id === t.vehicle_id);
+      if (found) rawVehNo = found.vehicle_number;
+    }
+    const cleanVehNo = (rawVehNo || '-').replace(/\s*\(.*?\)/g, '');
+
+    const row = [
       index + 1,
       t.loading_date || '-',
       t.lr_number || t.load_id || '-',
-      t.vehicle?.vehicle_number || '-',
+      cleanVehNo,
       (t.from_location || 'BANGALORE').toUpperCase(),
       (t.to_location || '-').toUpperCase(),
-      rate > 0 ? Number(rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '-',
+      rateDisplay,
       Number(baseAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-      otherChargesStr,
-      Number(totalFreight).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
     ];
+
+    if (hasOtherCharges) {
+      row.push(otherChargesStr);
+    }
+
+    row.push(Number(totalFreight).toLocaleString('en-IN', { minimumFractionDigits: 2 }));
+    return row;
   });
 
-  // Autotable: EXACT SNO, DATE, LRNO, VEHICLE NO, FROM, TO, RATE, AMOUNT, OTHER CHARGES, TOTAL
+  const headers = [
+    'SNO',
+    'DATE',
+    'LRNO',
+    'VEHICLE NO',
+    'FROM',
+    'TO',
+    'RATE',
+    'AMOUNT',
+  ];
+
+  if (hasOtherCharges) {
+    headers.push('OTHER CHARGES');
+  }
+  headers.push('TOTAL');
+
+  // Autotable: EXACT SNO, DATE, LRNO, VEHICLE NO, FROM, TO, RATE, AMOUNT, (OTHER CHARGES), TOTAL
   doc.autoTable({
     startY: margin + 55,
     margin: { left: margin, right: margin },
-    head: [[
-      'SNO',
-      'DATE',
-      'LRNO',
-      'VEHICLE NO',
-      'FROM',
-      'TO',
-      'RATE',
-      'AMOUNT',
-      'OTHER CHARGES',
-      'TOTAL'
-    ]],
+    head: [headers],
     body: tableRows,
     theme: 'grid',
     styles: {
@@ -160,11 +218,11 @@ export function generateInvoicePDF({ invoice, client, trips, companySettings }) 
       1: { halign: 'center', cellWidth: 18 },
       2: { halign: 'center', cellWidth: 18 },
       3: { halign: 'center', cellWidth: 22 },
-      4: { cellWidth: 24 },
-      5: { cellWidth: 24 },
-      6: { halign: 'right', cellWidth: 18 },
-      7: { halign: 'right', cellWidth: 19 },
-      8: { halign: 'right', cellWidth: 19 },
+      4: { cellWidth: 23 },
+      5: { cellWidth: 23 },
+      6: { halign: 'right', cellWidth: 22 },
+      7: { halign: 'right', cellWidth: 18 },
+      8: { halign: 'right', cellWidth: 18 },
       9: { halign: 'right', cellWidth: 18 },
     },
   });
@@ -202,15 +260,19 @@ export function generateInvoicePDF({ invoice, client, trips, companySettings }) 
   doc.setFontSize(7.5);
   doc.text(`Amount In Words : ${words}`, margin + 3, wordsY + 4.8);
 
-  // Reverse Charge Row
-  const rcY = wordsY + 7;
-  doc.rect(margin, rcY, contentWidth / 2, 7);
-  doc.rect(margin + contentWidth / 2, rcY, contentWidth / 2, 7);
-  doc.text('GST is payable on Reverse Charge: Yes', margin + 3, rcY + 4.8);
-  doc.text(`Amount of GST subject to Reverse Charge : IGST 5%   ${gstAmountStr}`, margin + contentWidth / 2 + 3, rcY + 4.8);
+  // Reverse Charge Row (Only printed if reverse_charge is enabled)
+  let nextY = wordsY + 7;
+  if (invoice.reverse_charge !== false) {
+    const rcY = nextY;
+    doc.rect(margin, rcY, contentWidth / 2, 7);
+    doc.rect(margin + contentWidth / 2, rcY, contentWidth / 2, 7);
+    doc.text('GST is payable on Reverse Charge: Yes', margin + 3, rcY + 4.8);
+    doc.text(`Amount of GST subject to Reverse Charge : IGST 5%   ${gstAmountStr}`, margin + contentWidth / 2 + 3, rcY + 4.8);
+    nextY = rcY + 7;
+  }
 
   // Terms and Conditions
-  const termsY = rcY + 11;
+  const termsY = nextY + 4;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.text('Terms and Conditions :', margin + 3, termsY);

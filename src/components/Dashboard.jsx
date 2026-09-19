@@ -269,7 +269,7 @@ export function Dashboard({
             <div className="space-y-2 sm:space-y-2.5">
               <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-brand-gold/15 border border-brand-gold/30 text-brand-gold text-[10px] sm:text-xs font-bold tracking-wider uppercase">
                 <ShieldCheck className="w-3.5 h-3.5 text-brand-gold shrink-0" />
-                <span>{companySettings?.branch_name || 'Bathalapalli Branch'} · Transport Logistics Hub</span>
+                <span>{companySettings?.branch_name || (companySettings?.id === 'SRL' ? 'Hosur Branch - Logistics' : 'Hosur Branch - Transport')}</span>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">

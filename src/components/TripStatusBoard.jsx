@@ -216,7 +216,6 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                     <div className="flex items-center space-x-1 text-xs text-slate-500 mt-1">
                       <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-semibold text-slate-700">{trip.vehicle?.vehicle_number}</span>
-                      <span className="text-[10px] text-slate-400">({trip.vehicle?.vehicle_type})</span>
                     </div>
                   </div>
 
@@ -293,7 +292,6 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                     <div className="flex items-center space-x-1 text-xs text-slate-500 mt-1">
                       <Truck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                       <span className="font-semibold text-slate-700">{trip.vehicle?.vehicle_number}</span>
-                      <span className="text-[10px] text-slate-400">({trip.vehicle?.vehicle_type})</span>
                     </div>
                   </div>
 
@@ -419,7 +417,10 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                       {onNavigateToPayments && (
                         <button
                           type="button"
-                          onClick={() => onNavigateToPayments(trip.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNavigateToPayments(trip.id || trip.load_id);
+                          }}
                           className="text-[10px] font-extrabold text-indigo-800 hover:underline flex items-center space-x-0.5 shrink-0 ml-1 cursor-pointer"
                         >
                           <CreditCard className="w-3 h-3" />
@@ -428,8 +429,21 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                       )}
                     </div>
                   ) : (
-                    <div className="w-full py-1 text-center text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-200">
-                      Ready for Invoice Batch
+                    <div className="w-full py-1.5 px-2.5 flex items-center justify-between text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <span className="truncate">Ready for Invoice Batch</span>
+                      {onNavigateToPayments && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNavigateToPayments(trip.id || trip.load_id);
+                          }}
+                          className="text-[10px] font-extrabold text-emerald-800 hover:underline flex items-center space-x-0.5 shrink-0 ml-1 cursor-pointer"
+                        >
+                          <CreditCard className="w-3 h-3" />
+                          <span>Payments ➔</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -516,10 +530,13 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                         </button>
                       )}
                       {trip.status === 'completed' && (
-                        trip.invoiced && onNavigateToPayments ? (
+                        onNavigateToPayments ? (
                           <button
                             type="button"
-                            onClick={() => onNavigateToPayments(trip.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigateToPayments(trip.id || trip.load_id);
+                            }}
                             className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[10px] font-extrabold transition cursor-pointer"
                           >
                             <CreditCard className="w-3 h-3" />

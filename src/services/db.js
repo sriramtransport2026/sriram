@@ -15,6 +15,30 @@ const STORAGE_KEYS = {
   USER_LOGS: 'srt_user_logs_v1',
 };
 
+let isUserLogsTableAvailable = true;
+
+// Smart next invoice number generator based on existing sequence
+export const getNextInvoiceNumber = (invoices = [], prefix = 'SRT-26-27/') => {
+  let maxSeq = 113; // Base default sequence so next is 114
+  if (Array.isArray(invoices)) {
+    for (const inv of invoices) {
+      if (!inv || !inv.invoice_number) continue;
+      const str = String(inv.invoice_number).trim();
+      const match = str.match(/(\d+)$/);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        // Exclude manual outlier numbers like 686868 or 8000
+        if (!isNaN(val) && val < 5000) {
+          if (val > maxSeq) {
+            maxSeq = val;
+          }
+        }
+      }
+    }
+  }
+  return `${prefix}${maxSeq + 1}`;
+};
+
 // UUID Validation, Generation & Legacy ID Resolvers for Supabase Postgres Foreign Key Integrity
 export const isUuid = (str) => {
   return typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
@@ -136,7 +160,7 @@ export const DEFAULT_COMPANY_ENTITIES = {
     short_name: 'Sri Ram Transport',
     tagline: 'TRUST • TRANSPORT • TOGETHER',
     address: 'NO: 4/ KRISHNAPPA BUILDING NEAR VEGITABLE MARKET KRISHNAGIRI MAIN ROAD BATHALAPALLI HOSUR, Hosur - 635109, TAMIL NADU, India',
-    branch_name: 'Bathalapalli Market Branch',
+    branch_name: 'Hosur Branch - Transport',
     branch_location: 'Bathalapalli, Hosur',
     email: 'sriramtransporthosur@gmail.com',
     phone: '9944121306',
@@ -156,7 +180,7 @@ export const DEFAULT_COMPANY_ENTITIES = {
     short_name: 'Sri Ram Logistics',
     tagline: 'AT OWNER\'S RISK • PROMPT DISPATCH',
     address: 'Flat No. 701/18B1, Perandapalli Village, Thorapalli Agraharam Post, HOSUR - 635 130, Krishnagiri Dist.',
-    branch_name: 'Thorapalli Agraharam / Perandapalli Branch',
+    branch_name: 'Hosur Branch - Logistics',
     branch_location: 'Thorapalli Agraharam, Hosur - 635130',
     email: 'sriramtransporthosur@gmail.com',
     phone: '99441 21306 / 96983 89111',
@@ -1522,9 +1546,15 @@ function ensureSeedData() {
     }
   }
 
-  if (!localStorage.getItem(STORAGE_KEYS.COMPANY_ENTITIES)) {
-    setLocalItem(STORAGE_KEYS.COMPANY_ENTITIES, DEFAULT_COMPANY_ENTITIES);
+  const storedEntities = getLocalItem(STORAGE_KEYS.COMPANY_ENTITIES, DEFAULT_COMPANY_ENTITIES);
+  if (storedEntities['33GUPS2382N1ZF']) {
+    storedEntities['33GUPS2382N1ZF'].branch_name = 'Hosur Branch - Transport';
   }
+  if (storedEntities['33GWYPP4027A1ZD']) {
+    storedEntities['33GWYPP4027A1ZD'].branch_name = 'Hosur Branch - Logistics';
+  }
+  setLocalItem(STORAGE_KEYS.COMPANY_ENTITIES, storedEntities);
+
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_ENTITY_GSTIN)) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_ENTITY_GSTIN, '33GUPS2382N1ZF');
   }
@@ -1816,8 +1846,15 @@ export const db = {
 
     if (isSupabaseConfigured) {
       try {
-        const { profit: _omit, vehicle: _v, client: _c, vehicle_rate: _vr, lr_status: _ls, ...supabasePayload } = payload;
-        const { data, error } = await supabase.from('trips').upsert(supabasePayload, { onConflict: 'id' }).select().single();
+        const { profit: _omit, vehicle: _v, vehicle_number: _vn, client: _c, vehicle_rate: _vr, lr_status: _ls, base_vehicle_freight: _bvf, ...supabasePayload } = payload;
+        let { data, error } = await supabase.from('trips').upsert(supabasePayload, { onConflict: 'id' }).select().single();
+        if (error && error.message && (error.message.includes('column') || error.message.includes('invoice_value') || error.message.includes('invoice_number') || error.message.includes('base_vehicle_freight'))) {
+          const { invoice_value: _iv, invoice_number: _in, base_vehicle_freight: _bvf2, vehicle_number: _vn2, ...fallbackPayload } = supabasePayload;
+          fallbackPayload.invoice_no_ref = payload.invoice_number || payload.invoice_no_ref || payload.ref_invoice_number || '';
+          const retry = await supabase.from('trips').upsert(fallbackPayload, { onConflict: 'id' }).select().single();
+          data = retry.data;
+          error = retry.error;
+        }
         if (!error && data) {
           persistedId = data.id;
         } else if (error) {
@@ -2036,7 +2073,7 @@ export const db = {
     }));
   },
 
-  async generateInvoice({ clientId, tripIds, invoiceNumber, invoiceDate, gstPercent = 5.0, notes = '', company_gstin, company_name }) {
+  async generateInvoice({ clientId, tripIds, invoiceNumber, invoiceDate, gstPercent = 5.0, notes = '', company_gstin, company_name, reverse_charge = true }) {
     if (!clientId || !tripIds || tripIds.length === 0) {
       throw new Error('Please select a client and at least one completed trip.');
     }
@@ -2067,15 +2104,67 @@ export const db = {
       gst_percent: gstPercent,
       gst_amount: gstAmount,
       net_amount: netAmount,
-      reverse_charge: true,
+      reverse_charge: reverse_charge !== false,
       notes,
       created_at: new Date().toISOString(),
     };
 
     if (isSupabaseConfigured) {
       try {
+        let invoiceNumToUse = newInvoice.invoice_number ? String(newInvoice.invoice_number).trim() : '';
+
+        // Check if invoice number already exists in Supabase
+        if (invoiceNumToUse) {
+          const { data: existingInv } = await supabase
+            .from('invoices')
+            .select('invoice_number')
+            .eq('invoice_number', invoiceNumToUse)
+            .maybeSingle();
+
+          if (existingInv) {
+            const { data: allInvs } = await supabase.from('invoices').select('invoice_number');
+            const taken = new Set((allInvs || []).map(i => String(i.invoice_number || '').trim()));
+            const prefixMatch = invoiceNumToUse.match(/^(.*?)(\d+)$/);
+            if (prefixMatch) {
+              const pfx = prefixMatch[1];
+              let num = parseInt(prefixMatch[2], 10);
+              while (taken.has(`${pfx}${num}`)) {
+                num++;
+              }
+              invoiceNumToUse = `${pfx}${num}`;
+            } else {
+              let s = 1;
+              while (taken.has(`${invoiceNumToUse}-${s}`)) {
+                s++;
+              }
+              invoiceNumToUse = `${invoiceNumToUse}-${s}`;
+            }
+            newInvoice.invoice_number = invoiceNumToUse;
+          }
+        }
+
         const { gst_amount: _g, net_amount: _n, ...supabaseInvoicePayload } = newInvoice;
+        supabaseInvoicePayload.invoice_number = newInvoice.invoice_number;
+
         let { data: createdInv, error } = await supabase.from('invoices').insert([supabaseInvoicePayload]).select().single();
+        
+        // If 23505 collision occurs (race condition), auto-increment and retry
+        if (error && error.code === '23505') {
+          const { data: allInvs } = await supabase.from('invoices').select('invoice_number');
+          const taken = new Set((allInvs || []).map(i => String(i.invoice_number || '').trim()));
+          const prefixMatch = newInvoice.invoice_number.match(/^(.*?)(\d+)$/);
+          const pfx = prefixMatch ? prefixMatch[1] : `${newInvoice.invoice_number}-`;
+          let num = prefixMatch ? parseInt(prefixMatch[2], 10) + 1 : 1;
+          while (taken.has(`${pfx}${num}`)) {
+            num++;
+          }
+          newInvoice.invoice_number = `${pfx}${num}`;
+          supabaseInvoicePayload.invoice_number = newInvoice.invoice_number;
+          const retry = await supabase.from('invoices').insert([supabaseInvoicePayload]).select().single();
+          createdInv = retry.data;
+          error = retry.error;
+        }
+
         if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
           const { company_gstin: _cg, company_name: _cn, ...fallbackPayload } = supabaseInvoicePayload;
           const retry = await supabase.from('invoices').insert([fallbackPayload]).select().single();
@@ -2181,6 +2270,7 @@ export const db = {
     notes = '',
     company_gstin,
     company_name,
+    reverse_charge = true,
     trips: inputTrips = []
   }) {
     if (!client_id) throw new Error('Please select a Client.');
@@ -2212,13 +2302,14 @@ export const db = {
       gst_percent: parseFloat(gst_percent) || 5.0,
       gst_amount: gstAmount,
       net_amount: netAmount,
-      reverse_charge: true,
+      reverse_charge: reverse_charge !== false,
       notes: notes || 'Direct Multi-Trip Invoice Entry',
       is_direct: true,
       created_at: now,
     };
 
     // 3. Prepare each completed trip record
+    const allVehicles = getLocalItem(STORAGE_KEYS.VEHICLES, []);
     const createdTrips = inputTrips.map((t, idx) => {
       const freightAmt = parseFloat(t.freight_amount) || 0;
       const vehicleAmt = parseFloat(t.vehicle_freight) || 0;
@@ -2226,6 +2317,8 @@ export const db = {
       const tripId = generateUuid();
       const loadId = t.load_id || ('220' + Math.floor(10000 + Math.random() * 90000));
       const lrNumber = t.lr_number || ('LR-DIR-' + loadId);
+      const vehObj = t.vehicle || allVehicles.find(v => v.id === t.vehicle_id) || null;
+      const vehNum = t.vehicle_number || vehObj?.vehicle_number || '';
 
       return {
         ...t,
@@ -2235,6 +2328,11 @@ export const db = {
         loading_date: t.loading_date || invDate,
         client_id: cleanClientId,
         vehicle_id: resolveVehicleId(t.vehicle_id) || (isUuid(t.vehicle_id) ? t.vehicle_id : null),
+        vehicle_number: vehNum,
+        vehicle: vehObj,
+        invoice_no_ref: (t.invoice_number || t.ref_invoice_number || t.invoice_no_ref || '').trim(),
+        invoice_number: (t.invoice_number || t.ref_invoice_number || t.invoice_no_ref || '').trim(),
+        invoice_value: parseFloat(t.invoice_value) || 0,
         company_gstin: effectiveGstin,
         company_name: effectiveName,
         status: 'completed', // Bypasses booked and in_transit directly!
@@ -2258,8 +2356,64 @@ export const db = {
     // 4. Save to Supabase with non-destructive fallback handling
     if (isSupabaseConfigured) {
       try {
+        let invoiceNumToUse = newInvoice.invoice_number ? String(newInvoice.invoice_number).trim() : '';
+
+        // Check if invoice number already exists in Supabase
+        if (invoiceNumToUse) {
+          const { data: existingInv } = await supabase
+            .from('invoices')
+            .select('invoice_number')
+            .eq('invoice_number', invoiceNumToUse)
+            .maybeSingle();
+
+          if (existingInv) {
+            const { data: allInvs } = await supabase.from('invoices').select('invoice_number');
+            const taken = new Set((allInvs || []).map(i => String(i.invoice_number || '').trim()));
+            const prefixMatch = invoiceNumToUse.match(/^(.*?)(\d+)$/);
+            if (prefixMatch) {
+              const pfx = prefixMatch[1];
+              let num = parseInt(prefixMatch[2], 10);
+              while (taken.has(`${pfx}${num}`)) {
+                num++;
+              }
+              invoiceNumToUse = `${pfx}${num}`;
+            } else {
+              let s = 1;
+              while (taken.has(`${invoiceNumToUse}-${s}`)) {
+                s++;
+              }
+              invoiceNumToUse = `${invoiceNumToUse}-${s}`;
+            }
+            newInvoice.invoice_number = invoiceNumToUse;
+            createdTrips.forEach(tr => { tr.direct_invoice_number = invoiceNumToUse; });
+          }
+        }
+
         const { gst_amount: _g, net_amount: _n, ...supabaseInvPayload } = newInvoice;
+        supabaseInvPayload.invoice_number = newInvoice.invoice_number;
+
         let { data: supInv, error: invErr } = await supabase.from('invoices').insert([supabaseInvPayload]).select().single();
+        
+        // If 23505 collision occurs (race condition), auto-increment and retry
+        if (invErr && invErr.code === '23505') {
+          const { data: allInvs } = await supabase.from('invoices').select('invoice_number');
+          const taken = new Set((allInvs || []).map(i => String(i.invoice_number || '').trim()));
+          const prefixMatch = newInvoice.invoice_number.match(/^(.*?)(\d+)$/);
+          const pfx = prefixMatch ? prefixMatch[1] : `${newInvoice.invoice_number}-`;
+          let num = prefixMatch ? parseInt(prefixMatch[2], 10) + 1 : 1;
+          while (taken.has(`${pfx}${num}`)) {
+            num++;
+          }
+          invoiceNumToUse = `${pfx}${num}`;
+          newInvoice.invoice_number = invoiceNumToUse;
+          supabaseInvPayload.invoice_number = invoiceNumToUse;
+          createdTrips.forEach(tr => { tr.direct_invoice_number = invoiceNumToUse; });
+
+          const retryRes = await supabase.from('invoices').insert([supabaseInvPayload]).select().single();
+          supInv = retryRes.data;
+          invErr = retryRes.error;
+        }
+
         if (invErr) {
           console.error('Supabase saveDirectInvoiceEntry invoice error:', invErr);
           throw new Error('Failed to save direct invoice: ' + (invErr.message || JSON.stringify(invErr)));
@@ -2270,8 +2424,15 @@ export const db = {
 
         for (const tr of createdTrips) {
           tr.invoice_id = effectiveDbInvoiceId;
-          const { profit: _p, vehicle: _vh, client: _cl, vehicle_rate: _vr, lr_status: _ls, ...supTripPayload } = tr;
+          const { profit: _p, vehicle: _vh, vehicle_number: _vn, client: _cl, vehicle_rate: _vr, lr_status: _ls, base_vehicle_freight: _bvf, ...supTripPayload } = tr;
           let { data: supTrip, error: tripErr } = await supabase.from('trips').insert([supTripPayload]).select().single();
+          if (tripErr && tripErr.message && (tripErr.message.includes('column') || tripErr.message.includes('invoice_value') || tripErr.message.includes('invoice_number') || tripErr.message.includes('base_vehicle_freight'))) {
+            const { invoice_value: _iv, invoice_number: _in, base_vehicle_freight: _bvf2, vehicle_number: _vn2, ...fallbackTripPayload } = supTripPayload;
+            fallbackTripPayload.invoice_no_ref = tr.invoice_number || tr.invoice_no_ref || tr.ref_invoice_number || '';
+            const retry = await supabase.from('trips').insert([fallbackTripPayload]).select().single();
+            supTrip = retry.data;
+            tripErr = retry.error;
+          }
           if (tripErr) {
             console.error('Supabase saveDirectInvoiceEntry trip error:', tripErr);
           } else if (supTrip) {
@@ -3055,19 +3216,23 @@ export const db = {
 
   // USER LOGS & AUDIT TRAIL
   async getUserLogs(filterGstin = null) {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isUserLogsTableAvailable) {
       try {
         let query = supabase.from('user_logs').select('*').order('created_at', { ascending: false }).limit(500);
         if (filterGstin && filterGstin !== 'ALL') {
           query = query.eq('company_gstin', filterGstin);
         }
-        const { data, error } = await query;
-        if (!error && Array.isArray(data) && data.length > 0) {
+        const { data, error, status } = await query;
+        if (error) {
+          if (status === 404 || error.code === 'PGRST205' || error.code === '42P01') {
+            isUserLogsTableAvailable = false;
+          }
+        } else if (Array.isArray(data) && data.length > 0) {
           setLocalItem(STORAGE_KEYS.USER_LOGS, data);
           return data;
         }
       } catch (err) {
-        console.warn('Supabase getUserLogs failed, using local storage fallback:', err);
+        isUserLogsTableAvailable = false;
       }
     }
 
@@ -3105,13 +3270,17 @@ export const db = {
       const updatedLogs = [logRecord, ...existingLogs.filter(l => l.id !== logRecord.id)].slice(0, 1000);
       setLocalItem(STORAGE_KEYS.USER_LOGS, updatedLogs);
 
-      // Try inserting into Supabase non-blockingly
-      if (isSupabaseConfigured) {
-        supabase.from('user_logs').insert([logRecord]).then(({ error }) => {
+      // Try inserting into Supabase non-blockingly if table is available
+      if (isSupabaseConfigured && isUserLogsTableAvailable) {
+        supabase.from('user_logs').insert([logRecord]).then(({ error, status }) => {
           if (error) {
-            console.warn('Supabase logUserAction insert warning (table may need schema migration):', error.message);
+            if (status === 404 || error.code === 'PGRST205' || error.code === '42P01') {
+              isUserLogsTableAvailable = false;
+            }
           }
-        }).catch(e => console.warn('Supabase logUserAction error:', e));
+        }).catch(() => {
+          isUserLogsTableAvailable = false;
+        });
       }
 
       return logRecord;
@@ -3122,16 +3291,19 @@ export const db = {
   },
 
   async clearUserLogs() {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isUserLogsTableAvailable) {
       try {
         await supabase.from('user_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       } catch (e) {
-        console.warn('Supabase clearUserLogs error:', e);
+        // quiet fallback
       }
     }
     setLocalItem(STORAGE_KEYS.USER_LOGS, []);
     return true;
   },
+
+  // Smart invoice number generator
+  getNextInvoiceNumber,
 
   // Reset to fresh demo data
   resetToDemoData() {

@@ -26,7 +26,7 @@ import logoImg from '../assets/logo.png';
 
 export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, onQuickAddVehicle, onQuickAddClient }) {
   const [formData, setFormData] = useState({
-    load_id: '220' + Math.floor(10000 + Math.random() * 90000),
+    load_id: '',
     loading_date: new Date().toISOString().split('T')[0],
     client_id: '',
     vehicle_id: '',
@@ -35,9 +35,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
     consignor: '',
     consignee: '',
     invoice_no_ref: '',
+    invoice_number: '',
+    invoice_value: '',
     packages: '',
     description: '',
-    unit_type: 'MT', // 'MT' | 'kg' | 'boxes' | 'bags' | 'custom'
+    unit_type: 'MT', // 'MT' | 'fixed' | 'custom'
     custom_unit: '',
     actual_weight: '',
     charged_weight: '',
@@ -48,6 +50,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
     other_charges: [], // array of { id, name, type: 'add' | 'subtract', amount: '' }
     freight_amount: '',
     vehicle_freight: '',
+    base_vehicle_freight: '',
   });
 
   const [showVehicleModal, setShowVehicleModal] = useState(false);
@@ -65,9 +68,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
     if (formData.unit_type === 'custom') {
       return formData.custom_unit?.trim() || 'Custom';
     }
-    if (formData.unit_type === 'boxes') return 'Boxes';
-    if (formData.unit_type === 'bags') return 'Bags';
-    if (formData.unit_type === 'kg') return 'kg';
+    if (formData.unit_type === 'fixed') return 'fixed';
     return 'MT';
   };
 
@@ -95,41 +96,61 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
     });
   }
 
-  // Expected Overall Freight: Base - Loading/Unloading + Other Additions - Other Deductions
-  const expectedFreight = baseFreightNum > 0
-    ? Math.max(0, Math.round((baseFreightNum - loadingDeductionNum + othersAddTotal - othersSubTotal) * 100) / 100)
-    : null;
+  // Client Freight: Purely base client freight (Charged Weight × Client Rate)
+  const expectedFreight = baseFreightNum > 0 ? baseFreightNum : null;
   const isAutoComputedFreight = expectedFreight !== null && Math.abs(freightAmt - expectedFreight) < 0.01;
+
+  // Lorry Vehicle Freight: Base Lorry + Loading/Unloading + Other Additions - Other Deductions
+  const lorryRateNum = parseFloat(formData.vehicle_rate) || 0;
+  const baseLorryNum = (chargedNum > 0 && lorryRateNum > 0)
+    ? Math.round(chargedNum * lorryRateNum * 100) / 100
+    : (parseFloat(formData.base_vehicle_freight) || (parseFloat(formData.vehicle_freight) ? Math.max(0, (parseFloat(formData.vehicle_freight) || 0) - othersAddTotal + othersSubTotal - loadingDeductionNum) : 0));
+
+  const expectedVehicleFreight = (baseLorryNum > 0 || othersAddTotal > 0 || othersSubTotal > 0 || loadingDeductionNum > 0)
+    ? Math.max(0, Math.round((baseLorryNum + loadingDeductionNum + othersAddTotal - othersSubTotal) * 100) / 100)
+    : null;
+  const isAutoComputedVehicleFreight = expectedVehicleFreight !== null && Math.abs(vehicleAmt - expectedVehicleFreight) < 0.01;
 
   // Central Calculation updater helper
   const updateCalculation = (updated) => {
     const charged = parseFloat(updated.charged_weight);
     const clientRate = parseFloat(updated.rate);
-    const base = (!isNaN(charged) && !isNaN(clientRate) && charged > 0 && clientRate > 0)
-      ? Math.round(charged * clientRate * 100) / 100
-      : 0;
 
-    let net = base;
+    // 1. Freight Amount (Client Billed) is purely base client freight (Charged Weight × Client Rate)
+    // Other charges do NOT add to client freight
+    if (!isNaN(charged) && !isNaN(clientRate) && charged > 0 && clientRate > 0) {
+      const clientBase = Math.round(charged * clientRate * 100) / 100;
+      updated.freight_amount = clientBase.toString();
+    }
+
+    // 2. Base Lorry Freight: from Vehicle Rate × Charged Weight or existing base
+    const lorryRate = parseFloat(updated.vehicle_rate);
+    let baseLorry = 0;
+    if (!isNaN(charged) && !isNaN(lorryRate) && charged > 0 && lorryRate > 0) {
+      baseLorry = Math.round(charged * lorryRate * 100) / 100;
+      updated.base_vehicle_freight = baseLorry.toString();
+    } else if (updated.base_vehicle_freight !== undefined && updated.base_vehicle_freight !== '') {
+      baseLorry = parseFloat(updated.base_vehicle_freight) || 0;
+    } else if (updated.vehicle_freight !== undefined && updated.vehicle_freight !== '') {
+      baseLorry = parseFloat(updated.vehicle_freight) || 0;
+      updated.base_vehicle_freight = baseLorry.toString();
+    }
+
+    // 3. Other charges & Loading/Unloading apply to Vehicle Freight (Lorry Paid)
+    let lorryNet = baseLorry;
     if (updated.has_loading_unloading === 'yes') {
-      net -= (parseFloat(updated.loading_unloading_amount) || 0);
+      lorryNet += (parseFloat(updated.loading_unloading_amount) || 0);
     }
     if (Array.isArray(updated.other_charges)) {
       updated.other_charges.forEach(item => {
         const amt = parseFloat(item.amount) || 0;
-        if (item.type === 'add') net += amt;
-        else if (item.type === 'subtract') net -= amt;
+        if (item.type === 'add') lorryNet += amt;
+        else if (item.type === 'subtract') lorryNet -= amt;
       });
     }
 
-    if (base > 0) {
-      updated.freight_amount = Math.max(0, Math.round(net * 100) / 100).toString();
-    }
-
-    // Auto-calculate vehicle freight if vehicle_rate is provided (Charged Qty × Lorry Rate)
-    const lorryRate = parseFloat(updated.vehicle_rate);
-    if (!isNaN(charged) && !isNaN(lorryRate) && charged > 0 && lorryRate > 0) {
-      const calculatedVehicle = Math.round(charged * lorryRate * 100) / 100;
-      updated.vehicle_freight = calculatedVehicle.toString();
+    if (baseLorry > 0 || (Array.isArray(updated.other_charges) && updated.other_charges.length > 0) || updated.has_loading_unloading === 'yes') {
+      updated.vehicle_freight = Math.max(0, Math.round(lorryNet * 100) / 100).toString();
     }
 
     return updated;
@@ -138,7 +159,28 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
   // General field change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'vehicle_freight') {
+      let netAdj = 0;
+      if (formData.has_loading_unloading === 'yes') {
+        netAdj += (parseFloat(formData.loading_unloading_amount) || 0);
+      }
+      if (Array.isArray(formData.other_charges)) {
+        formData.other_charges.forEach(item => {
+          const a = parseFloat(item.amount) || 0;
+          if (item.type === 'add') netAdj += a;
+          else if (item.type === 'subtract') netAdj -= a;
+        });
+      }
+      const valNum = parseFloat(value) || 0;
+      const base = Math.max(0, valNum - netAdj);
+      setFormData(prev => ({
+        ...prev,
+        vehicle_freight: value,
+        base_vehicle_freight: base.toString()
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Smart Weights & Rates handler with automatic calculation
@@ -206,6 +248,12 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
   const handleRecalculateFreight = () => {
     if (expectedFreight !== null) {
       setFormData(prev => ({ ...prev, freight_amount: expectedFreight.toString() }));
+    }
+  };
+
+  const handleRecalculateVehicleFreight = () => {
+    if (expectedVehicleFreight !== null) {
+      setFormData(prev => ({ ...prev, vehicle_freight: expectedVehicleFreight.toString() }));
     }
   };
 
@@ -308,6 +356,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
 
       await onSaveTrip({
         ...formData,
+        lr_number: formData.load_id?.trim() || '',
         packages: finalPackages,
         actual_weight: Number(formData.charged_weight) || 0,
         charged_weight: Number(formData.charged_weight) || 0,
@@ -317,15 +366,18 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
         status: 'booked',
         unit_type: formData.unit_type,
         custom_unit: formData.custom_unit,
+        invoice_no_ref: formData.invoice_number || formData.invoice_no_ref,
+        invoice_number: formData.invoice_number || formData.invoice_no_ref,
+        invoice_value: formData.invoice_value,
         has_loading_unloading: formData.has_loading_unloading,
         loading_unloading_amount: formData.has_loading_unloading === 'yes' ? (parseFloat(formData.loading_unloading_amount) || 0) : 0,
         other_charges: (formData.other_charges || []).filter(item => item.amount && parseFloat(item.amount) > 0),
       });
       setSuccessMsg(`Load #${formData.load_id} (${finalPackages || 'Consignment'}) registered successfully with status Booked!`);
-      // Reset for next entry
+      // Reset for next entry - LR NO empty as requested
       setFormData(prev => ({
         ...prev,
-        load_id: '220' + Math.floor(10000 + Math.random() * 90000),
+        load_id: '',
         client_id: '',
         vehicle_id: '',
         from_location: '',
@@ -333,6 +385,8 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
         consignor: '',
         consignee: '',
         invoice_no_ref: '',
+        invoice_number: '',
+        invoice_value: '',
         packages: '',
         description: '',
         actual_weight: '',
@@ -344,6 +398,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
         other_charges: [],
         freight_amount: '',
         vehicle_freight: '',
+        base_vehicle_freight: '',
       }));
     } catch (err) {
       setErrorMsg(err.message || 'Failed to save trip.');
@@ -530,7 +585,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     <option value="">-- Select Vehicle --</option>
                     {vehicles.map(v => (
                       <option key={v.id} value={v.id}>
-                        {v.vehicle_number} — {v.vehicle_type || 'Lorry'} ({v.owner_name})
+                        {v.vehicle_number}
                       </option>
                     ))}
                   </select>
@@ -620,13 +675,31 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Client PO / Ref Invoice #
+                    Invoice No
                   </label>
                   <input
                     type="text"
-                    name="invoice_no_ref"
-                    placeholder="e.g. PO-98421 / INV-882"
-                    value={formData.invoice_no_ref}
+                    name="invoice_number"
+                    placeholder="e.g. INV-8821"
+                    value={formData.invoice_number || formData.invoice_no_ref || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({ ...prev, invoice_number: val, invoice_no_ref: val }));
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Invoice Value (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="invoice_value"
+                    placeholder="e.g. 150000"
+                    value={formData.invoice_value}
                     onChange={handleChange}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
                   />
@@ -665,19 +738,25 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Billing Category / Unit of Measurement <span className="text-rose-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'MT', label: 'Metric Ton (MT)' },
-                    { id: 'kg', label: 'Kilogram (kg)' },
-                    { id: 'boxes', label: 'Boxes / Cartons' },
-                    { id: 'bags', label: 'Bags / Sacks' },
+                    { id: 'fixed', label: 'Fixed' },
                     { id: 'custom', label: 'Custom Unit...' },
                   ].map((unit) => (
                     <button
                       key={unit.id}
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, unit_type: unit.id }))}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center ${
+                      onClick={() => setFormData(prev => {
+                        const updated = {
+                          ...prev,
+                          unit_type: unit.id,
+                          charged_weight: unit.id === 'fixed' ? '1' : (prev.charged_weight === '1' ? '' : prev.charged_weight),
+                          actual_weight: unit.id === 'fixed' ? '1' : (prev.actual_weight === '1' ? '' : prev.actual_weight),
+                        };
+                        return updateCalculation(updated);
+                      })}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
                         formData.unit_type === unit.id
                           ? 'bg-brand-navy text-white border-brand-navy shadow-sm ring-2 ring-brand-gold/50'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -708,65 +787,109 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 )}
               </div>
 
-              {/* Quantities & Rates Inputs (3 Columns with clear, non-truncated labels) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
-                {/* 1. Charged Weight / Quantity */}
-                <div className="space-y-1">
-                  <label className="block text-xs sm:text-sm font-bold text-brand-navy tracking-normal whitespace-normal">
-                    Charged {formData.unit_type === 'boxes' || formData.unit_type === 'bags' ? 'Quantity' : 'Weight'} ({currentUnit}) <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    name="charged_weight"
-                    placeholder="e.g. 1000"
-                    value={formData.charged_weight}
-                    onChange={(e) => handleWeightRateChange('charged_weight', e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
-                  />
-                  <p className="text-xs text-slate-500 font-medium">Basis for billing calculation</p>
-                </div>
+              {/* Quantities & Rates Inputs */}
+              {formData.unit_type === 'fixed' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                  {/* 1. Client Fixed Rate */}
+                  <div className="space-y-1">
+                    <label className="block text-xs sm:text-sm font-bold text-brand-navy tracking-normal whitespace-normal">
+                      Rate / fixed (₹) <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        step="any"
+                        name="rate"
+                        placeholder="e.g. 50000"
+                        value={formData.rate}
+                        onChange={(e) => handleWeightRateChange('rate', e.target.value)}
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium">Charged to client / consignee</p>
+                  </div>
 
-                {/* 2. Client Rate per Unit */}
-                <div className="space-y-1">
-                  <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
-                    Rate per {currentUnit} (₹) <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
+                  {/* 2. Vehicle Fixed Rate (Optional) */}
+                  <div className="space-y-1">
+                    <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
+                      Lorry Rate / fixed (₹) <span className="text-xs font-normal text-slate-400">(Optional)</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        step="any"
+                        name="vehicle_rate"
+                        placeholder="Optional"
+                        value={formData.vehicle_rate}
+                        onChange={(e) => handleWeightRateChange('vehicle_rate', e.target.value)}
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium">Optional rate paid to vehicle</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
+                  {/* 1. Charged Weight / Quantity */}
+                  <div className="space-y-1">
+                    <label className="block text-xs sm:text-sm font-bold text-brand-navy tracking-normal whitespace-normal">
+                      Charged Weight ({currentUnit}) <span className="text-rose-500 font-bold">*</span>
+                    </label>
                     <input
                       type="number"
                       step="any"
-                      name="rate"
-                      placeholder="e.g. 50000"
-                      value={formData.rate}
-                      onChange={(e) => handleWeightRateChange('rate', e.target.value)}
-                      className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
+                      name="charged_weight"
+                      placeholder="e.g. 10.5"
+                      value={formData.charged_weight}
+                      onChange={(e) => handleWeightRateChange('charged_weight', e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
                     />
+                    <p className="text-xs text-slate-500 font-medium">Basis for billing calculation</p>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium">Charged to client / consignee</p>
-                </div>
 
-                {/* 3. Vehicle / Lorry Rate per Unit (Optional) */}
-                <div className="space-y-1">
-                  <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
-                    Lorry Rate / {currentUnit} (₹) <span className="text-xs font-normal text-slate-400">(Optional)</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
-                    <input
-                      type="number"
-                      step="any"
-                      name="vehicle_rate"
-                      placeholder="Optional"
-                      value={formData.vehicle_rate}
-                      onChange={(e) => handleWeightRateChange('vehicle_rate', e.target.value)}
-                      className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
-                    />
+                  {/* 2. Client Rate per Unit */}
+                  <div className="space-y-1">
+                    <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
+                      Rate per {currentUnit} (₹) <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        step="any"
+                        name="rate"
+                        placeholder="e.g. 50000"
+                        value={formData.rate}
+                        onChange={(e) => handleWeightRateChange('rate', e.target.value)}
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium">Charged to client / consignee</p>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium">Optional rate paid to vehicle</p>
+
+                  {/* 3. Vehicle / Lorry Rate per Unit (Optional) */}
+                  <div className="space-y-1">
+                    <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
+                      Lorry Rate / {currentUnit} (₹) <span className="text-xs font-normal text-slate-400">(Optional)</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        step="any"
+                        name="vehicle_rate"
+                        placeholder="Optional"
+                        value={formData.vehicle_rate}
+                        onChange={(e) => handleWeightRateChange('vehicle_rate', e.target.value)}
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-brand-navy rounded-xl text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition shadow-xs"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium">Optional rate paid to vehicle</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* --- Loading & Unloading Charges Section --- */}
               <div className="pt-4 border-t border-slate-100">
@@ -774,15 +897,15 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                        Loading & Unloading Option
+                        Loading & Unloading Option (Vehicle Extra Charge)
                       </h4>
                       <p className="text-[11px] text-slate-500 font-normal">
-                        Select whether loading & unloading charges apply. If yes, enter the amount to be deducted.
+                        Select whether loading & unloading charges apply. If yes, enter the amount to be added to Vehicle Freight.
                       </p>
                     </div>
                     {formData.has_loading_unloading === 'yes' && (
-                      <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md shrink-0">
-                        &minus; Subtracted from Freight
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                        + Added to Vehicle Freight
                       </span>
                     )}
                   </div>
@@ -803,10 +926,10 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                         }`}
                       >
                         <option value="no" className="bg-white text-slate-900 font-normal">No — None / Not Applicable</option>
-                        <option value="yes" className="bg-white text-slate-900 font-bold">Yes — Deduct from Freight</option>
+                        <option value="yes" className="bg-white text-slate-900 font-bold">Yes — Add to Vehicle Freight (+)</option>
                       </select>
                       <p className="text-[11px] text-slate-500 mt-1">
-                        {formData.has_loading_unloading === 'yes' ? 'Enter the deduction amount in the field to the right.' : 'No loading/unloading charges will be added or subtracted.'}
+                        {formData.has_loading_unloading === 'yes' ? 'Enter the charge amount in the field to the right.' : 'No loading/unloading charges will be added.'}
                       </p>
                     </div>
 
@@ -827,8 +950,8 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                             className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-rose-300 focus:border-rose-500 rounded-xl text-sm font-bold text-rose-950 focus:outline-none focus:ring-2 focus:ring-rose-400 transition shadow-xs"
                           />
                         </div>
-                        <p className="text-[11px] text-rose-700 font-medium mt-1">
-                          &minus; ₹{parseFloat(formData.loading_unloading_amount || 0).toLocaleString('en-IN')} will be subtracted from overall freight.
+                        <p className="text-[11px] text-amber-800 font-medium mt-1">
+                          + ₹{parseFloat(formData.loading_unloading_amount || 0).toLocaleString('en-IN')} will be added to vehicle freight (reducing net profit).
                         </p>
                       </div>
                     ) : (
@@ -845,10 +968,10 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                      Other Charges & Adjustments (Manual Custom)
+                      Other Charges & Adjustments (Vehicle Freight Adjustments)
                     </h4>
                     <p className="text-[11px] text-slate-500 font-normal">
-                      Add extra items (e.g. Toll, Detention, Halting, Weighbridge, Advance) and decide whether each adds (+) or subtracts (&minus;)
+                      Add extra items (e.g. Toll, Detention, Halting, Weighbridge, Advance) to add (+) or subtract (&minus;) on Vehicle Freight (Lorry Paid).
                     </p>
                   </div>
                   <button
@@ -893,8 +1016,8 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                                 : 'bg-rose-50 text-rose-800 border-rose-300'
                             }`}
                           >
-                            <option value="add" className="bg-white text-emerald-800 font-bold">+ Add to Freight (+)</option>
-                            <option value="subtract" className="bg-white text-rose-800 font-bold">&minus; Subtract from Freight (&minus;)</option>
+                            <option value="add" className="bg-white text-emerald-800 font-bold">+ Add to Vehicle Freight (+)</option>
+                            <option value="subtract" className="bg-white text-rose-800 font-bold">&minus; Subtract from Vehicle Freight (&minus;)</option>
                           </select>
                         </div>
 
@@ -941,28 +1064,28 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 )}
               </div>
 
-              {/* Real-time Overall Calculation Equation Preview Banner */}
-              {baseFreightNum > 0 && (
+              {/* Real-time Calculation Equation Preview Banner */}
+              {(baseFreightNum > 0 || baseLorryNum > 0) && (
                 <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200 rounded-xl space-y-2 text-xs text-emerald-950 animate-fade-in shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 bg-emerald-600 text-white rounded font-bold text-[10px] uppercase tracking-wider">
-                        ⚡ Overall Formula
+                      <span className="px-2 py-0.5 bg-brand-navy text-white rounded font-bold text-[10px] uppercase tracking-wider">
+                        ⚡ Pricing Breakdown
                       </span>
                       <span className="font-semibold">
-                        Base: <strong className="font-mono">{chargedNum.toLocaleString('en-IN')} {currentUnit} &times; ₹{rateNum.toLocaleString('en-IN')} = ₹{baseFreightNum.toLocaleString('en-IN')}</strong>
+                        Client Freight: <strong className="font-mono">{chargedNum.toLocaleString('en-IN')} {currentUnit} &times; ₹{rateNum.toLocaleString('en-IN')} = ₹{baseFreightNum.toLocaleString('en-IN')}</strong>
                       </span>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-800 bg-white px-2.5 py-0.5 rounded-md border border-emerald-200 shrink-0 shadow-2xs">
-                      Overall Freight: <strong className="font-mono text-sm text-brand-navy">₹{Number(formData.freight_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                      Vehicle Lorry Freight: <strong className="font-mono text-sm text-brand-navy">₹{Number(formData.vehicle_freight || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
                     </span>
                   </div>
 
-                  {/* Itemized math if deductions or additions exist */}
+                  {/* Itemized math if deductions or additions exist on vehicle freight */}
                   {(loadingDeductionNum > 0 || othersAddTotal > 0 || othersSubTotal > 0) && (
                     <div className="pt-2 border-t border-emerald-200/70 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-700">
-                      <span className="font-bold">Breakdown:</span>
-                      <span className="font-mono">₹{baseFreightNum.toLocaleString('en-IN')} (Base)</span>
+                      <span className="font-bold text-slate-900">Vehicle Adjustments:</span>
+                      <span className="font-mono">₹{baseLorryNum.toLocaleString('en-IN')} (Base Lorry)</span>
                       {loadingDeductionNum > 0 && (
                         <span className="font-mono text-rose-700 font-semibold">&minus; ₹{loadingDeductionNum.toLocaleString('en-IN')} (Loading/Unloading)</span>
                       )}
@@ -972,7 +1095,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                       {othersSubTotal > 0 && (
                         <span className="font-mono text-rose-700 font-semibold">&minus; ₹{othersSubTotal.toLocaleString('en-IN')} (Other Deductions)</span>
                       )}
-                      <span className="font-bold text-brand-navy">= Overall ₹{Number(formData.freight_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-bold text-brand-navy">= Total Lorry ₹{Number(formData.vehicle_freight || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
                 </div>
@@ -999,19 +1122,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Freight Amount (Client Billed) <span className="text-rose-500">*</span>
                   </label>
-                  {isAutoComputedFreight ? (
+                  {baseFreightNum > 0 && (
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      ⚡ Overall Synced
+                      ⚡ Rate: {chargedNum} {currentUnit} &times; ₹{rateNum}
                     </span>
-                  ) : expectedFreight !== null ? (
-                    <button
-                      type="button"
-                      onClick={handleRecalculateFreight}
-                      className="text-[10px] font-bold text-brand-navy hover:underline flex items-center space-x-1"
-                    >
-                      <span>&#x21bb; Sync to Overall ₹{expectedFreight.toLocaleString('en-IN')}</span>
-                    </button>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="relative">
@@ -1027,36 +1142,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     className="w-full pl-8 pr-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-black text-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
                   />
                 </div>
-
-                {/* Overall Calculation Summary Card */}
-                <div className="mt-2.5 text-[11px] text-slate-600 space-y-1 bg-slate-50/90 p-3 rounded-xl border border-slate-200">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Base Freight:</span>
-                    <span className="font-mono font-semibold">₹{baseFreightNum.toLocaleString('en-IN')}</span>
-                  </div>
-                  {formData.has_loading_unloading === 'yes' && loadingDeductionNum > 0 && (
-                    <div className="flex justify-between text-rose-600 font-medium">
-                      <span>Loading & Unloading:</span>
-                      <span className="font-mono">&minus; ₹{loadingDeductionNum.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  {othersAddTotal > 0 && (
-                    <div className="flex justify-between text-emerald-600 font-medium">
-                      <span>Other Additions:</span>
-                      <span className="font-mono">+ ₹{othersAddTotal.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  {othersSubTotal > 0 && (
-                    <div className="flex justify-between text-rose-600 font-medium">
-                      <span>Other Deductions:</span>
-                      <span className="font-mono">&minus; ₹{othersSubTotal.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-brand-navy border-t border-slate-200/90 pt-1.5 mt-1">
-                    <span>Overall Net Freight:</span>
-                    <span className="font-mono">₹{Number(formData.freight_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Billed to client based on {currentUnit} rate.</p>
               </div>
 
               {/* Input 2: Vehicle Freight (Lorry Owner) */}
@@ -1065,11 +1151,19 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Vehicle Freight (Lorry Paid) <span className="text-rose-500">*</span>
                   </label>
-                  {formData.vehicle_rate && chargedNum > 0 && (
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      ⚡ Rate: {chargedNum} &times; ₹{formData.vehicle_rate}
+                  {isAutoComputedVehicleFreight ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      ⚡ Adjusted Synced
                     </span>
-                  )}
+                  ) : expectedVehicleFreight !== null ? (
+                    <button
+                      type="button"
+                      onClick={handleRecalculateVehicleFreight}
+                      className="text-[10px] font-bold text-brand-navy hover:underline flex items-center space-x-1"
+                    >
+                      <span>&#x21bb; Sync to ₹{expectedVehicleFreight.toLocaleString('en-IN')}</span>
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="relative">
@@ -1085,7 +1179,38 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     className="w-full pl-8 pr-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">Amount disbursed to lorry owner/driver for this trip.</p>
+
+                {/* Overall Calculation Summary Card for Vehicle Freight */}
+                {(baseLorryNum > 0 || othersAddTotal > 0 || othersSubTotal > 0 || loadingDeductionNum > 0) && (
+                  <div className="mt-2.5 text-[11px] text-slate-600 space-y-1 bg-slate-50/90 p-3 rounded-xl border border-slate-200">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Base Lorry Hire:</span>
+                      <span className="font-mono font-semibold">₹{baseLorryNum.toLocaleString('en-IN')}</span>
+                    </div>
+                    {formData.has_loading_unloading === 'yes' && loadingDeductionNum > 0 && (
+                      <div className="flex justify-between text-rose-600 font-medium">
+                        <span>Loading & Unloading:</span>
+                        <span className="font-mono">&minus; ₹{loadingDeductionNum.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {othersAddTotal > 0 && (
+                      <div className="flex justify-between text-emerald-600 font-medium">
+                        <span>Other Additions (Toll/Halting/etc):</span>
+                        <span className="font-mono">+ ₹{othersAddTotal.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {othersSubTotal > 0 && (
+                      <div className="flex justify-between text-rose-600 font-medium">
+                        <span>Other Deductions (Advance/etc):</span>
+                        <span className="font-mono">&minus; ₹{othersSubTotal.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-brand-navy border-t border-slate-200/90 pt-1.5 mt-1">
+                      <span>Total Lorry Paid:</span>
+                      <span className="font-mono">₹{Number(formData.vehicle_freight || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* LIVE COMPUTED PROFIT DISPLAY CARD */}
@@ -1117,8 +1242,8 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   {liveProfit >= 0 ? '+' : ''}₹{liveProfit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
 
-                <p className="text-[11px] mt-2 opacity-80">
-                  Formula: <span className="font-mono font-semibold">Freight (₹{freightAmt.toLocaleString('en-IN')}) &minus; Vehicle (₹{vehicleAmt.toLocaleString('en-IN')})</span>
+                <p className="text-[11px] mt-2 opacity-80 font-medium">
+                  Formula: <span className="font-mono font-bold">Client Freight (₹{freightAmt.toLocaleString('en-IN')}) &minus; Vehicle Freight (₹{vehicleAmt.toLocaleString('en-IN')}) = ₹{liveProfit.toLocaleString('en-IN')}</span>
                 </p>
               </div>
 
