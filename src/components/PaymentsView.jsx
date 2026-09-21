@@ -415,7 +415,7 @@ export function PaymentsView({
                 type="text" 
                 value={searchQuery} 
                 onChange={(e) => setSearchQuery(e.target.value)} 
-                placeholder="Search Load ID, LR, Client, Route..." 
+                placeholder="Search LR No, Client, Route..." 
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy" 
               />
             </div>
@@ -476,7 +476,7 @@ export function PaymentsView({
             <table className="w-full text-left text-xs min-w-[850px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="py-3.5 px-4">Load # / LR</th>
+                  <th className="py-3.5 px-4">LR Number</th>
                   <th className="py-3.5 px-4">Date</th>
                   <th className="py-3.5 px-4">Client</th>
                   <th className="py-3.5 px-4">Route</th>
@@ -495,14 +495,9 @@ export function PaymentsView({
                   return (
                     <tr key={trip.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-3.5 px-4 font-bold text-slate-900">
-                        <div className="flex items-center space-x-1.5">
-                          <span className="font-mono text-sm">#{trip.load_id}</span>
-                          {trip.lr_number && (
-                            <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono text-[10px] font-bold border border-indigo-200">
-                              LR: {trip.lr_number}
-                            </span>
-                          )}
-                        </div>
+                        <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-800 font-mono text-xs font-black border border-indigo-200">
+                          LR: {trip.lr_number || trip.load_id}
+                        </span>
                       </td>
                       <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">{trip.loading_date || '-'}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-800">{trip.clientName}</td>
@@ -577,12 +572,9 @@ export function PaymentsView({
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
-                      <span className="text-base font-black font-mono text-slate-900">#{trip.load_id}</span>
-                      {trip.lr_number && (
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-[10px] font-black">
-                          LR: {trip.lr_number}
-                        </span>
-                      )}
+                      <span className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-xs font-black">
+                        LR: {trip.lr_number || trip.load_id}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-3 text-[11px] text-slate-500">
                       <span className="flex items-center space-x-1">

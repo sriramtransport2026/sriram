@@ -373,10 +373,13 @@ export function App() {
           <TripStatusBoard
             onBack={() => setCurrentView('dashboard')}
             trips={accessibleTrips}
+            clients={accessibleClients}
+            vehicles={accessibleVehicles}
             onUpdateTripStatus={handleUpdateTripStatus}
             onTripCompleted={handleTripCompleted}
             onNavigateToPayments={handleNavigateToPayments}
             onDeleteTrip={handleDeleteTrip}
+            onSaveTrip={handleSaveTrip}
           />
         )}
 

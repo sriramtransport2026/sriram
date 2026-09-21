@@ -18,17 +18,20 @@ import {
   AlertCircle,
   Zap,
   CreditCard,
-  Trash2
+  Trash2,
+  Edit3,
+  X
 } from 'lucide-react';
 import { LRUploadModal } from './LRUploadModal';
 import logoImg from '../assets/logo.png';
 
-export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTripCompleted, onNavigateToPayments, onDeleteTrip }) {
+export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [], onUpdateTripStatus, onTripCompleted, onNavigateToPayments, onDeleteTrip, onSaveTrip }) {
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeTripForLRModal, setActiveTripForLRModal] = useState(null);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
+  const [editingBookedTrip, setEditingBookedTrip] = useState(null);
 
   // Filter trips
   const filteredTrips = trips.filter(trip => {
@@ -196,6 +199,14 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                     <span className="text-xs font-extrabold text-brand-navy">#{trip.load_id}</span>
                     <div className="flex items-center space-x-2">
                       <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingBookedTrip(trip)}
+                        className="text-slate-400 hover:text-brand-navy p-0.5 rounded cursor-pointer transition"
+                        title="Edit Booked Load"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
                       {onDeleteTrip && (
                         <button
                           type="button"
@@ -558,6 +569,16 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
+                      {trip.status === 'booked' && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingBookedTrip(trip)}
+                          className="p-1 text-slate-400 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition ml-1 cursor-pointer inline-block"
+                          title="Edit Booked Load"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -578,6 +599,17 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
         }}
       />
 
+      {/* EDIT BOOKED LOAD MODAL */}
+      {editingBookedTrip && (
+        <EditBookedTripModal
+          trip={editingBookedTrip}
+          clients={clients}
+          vehicles={vehicles}
+          onClose={() => setEditingBookedTrip(null)}
+          onSave={onSaveTrip}
+        />
+      )}
+
       {/* DOCUMENT PREVIEW MODAL */}
       {previewDocUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -597,6 +629,229 @@ export function TripStatusBoard({ onBack, trips = [], onUpdateTripStatus, onTrip
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EditBookedTripModal({ trip, clients = [], vehicles = [], onClose, onSave }) {
+  const matchedClient = clients.find(c => 
+    c.id === trip?.client_id || 
+    (c.name && trip?.client?.name && c.name.toLowerCase() === trip.client.name.toLowerCase()) ||
+    (c.name && trip?.client_name && c.name.toLowerCase() === trip.client_name.toLowerCase())
+  );
+  
+  const tripVehNo = trip?.vehicle_number || trip?.vehicle?.vehicle_number || trip?.truck_number;
+  const matchedVehicle = vehicles.find(v => 
+    v.id === trip?.vehicle_id || 
+    (v.vehicle_number && tripVehNo && v.vehicle_number.replace(/\s+/g, '').toUpperCase() === tripVehNo.replace(/\s+/g, '').toUpperCase()) ||
+    (v.truck_number && tripVehNo && v.truck_number.replace(/\s+/g, '').toUpperCase() === tripVehNo.replace(/\s+/g, '').toUpperCase())
+  );
+
+  const [formData, setFormData] = useState({
+    loading_date: trip?.loading_date || new Date().toISOString().split('T')[0],
+    load_id: trip?.load_id || trip?.lr_number || '',
+    client_id: matchedClient?.id || trip?.client_id || (clients[0]?.id || ''),
+    vehicle_id: matchedVehicle?.id || trip?.vehicle_id || (vehicles[0]?.id || ''),
+    from_location: trip?.from_location || '',
+    to_location: trip?.to_location || '',
+    goods_description: trip?.goods_description || trip?.material_name || trip?.material || trip?.goods || trip?.product_name || trip?.item_description || trip?.notes || '',
+    rate_type: trip?.rate_type || (trip?.unit_type === 'fixed' ? 'fixed' : 'MT'),
+    tons: trip?.tons || trip?.quantity || trip?.charged_weight || 1,
+    freight_rate: trip?.freight_rate || trip?.rate || trip?.freight_amount || 0,
+    vehicle_rate: trip?.vehicle_rate || trip?.vehicle_freight || trip?.vehicle_hire_cost || 0,
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const tonsVal = parseFloat(formData.tons) || 0;
+    const rateVal = parseFloat(formData.freight_rate) || 0;
+    const freightAmount = formData.rate_type === 'fixed' ? rateVal : (tonsVal * rateVal);
+    const vhRateVal = parseFloat(formData.vehicle_rate) || 0;
+    const vehicleFreight = formData.rate_type === 'fixed' ? vhRateVal : (tonsVal * vhRateVal);
+    const profit = freightAmount - vehicleFreight;
+
+    const selectedClient = clients.find(c => c.id === formData.client_id) || matchedClient;
+    const selectedVehicle = vehicles.find(v => v.id === formData.vehicle_id) || matchedVehicle;
+
+    if (onSave) {
+      await onSave({
+        ...trip,
+        ...formData,
+        lr_number: formData.load_id,
+        client_name: selectedClient?.name || trip.client_name || trip.client?.name,
+        client: selectedClient || trip.client,
+        vehicle_number: selectedVehicle?.vehicle_number || selectedVehicle?.truck_number || trip.vehicle_number || trip.vehicle?.vehicle_number,
+        vehicle: selectedVehicle || trip.vehicle,
+        freight_amount: freightAmount,
+        vehicle_freight: vehicleFreight,
+        profit: profit,
+      });
+    }
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl p-5 max-w-lg w-full shadow-2xl border border-slate-100 space-y-4 animate-scale-up max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          <h3 className="font-bold text-base text-slate-900 font-display">
+            Edit Booked Load #{trip.load_id}
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Loading Date</label>
+              <input
+                type="date"
+                required
+                value={formData.loading_date}
+                onChange={(e) => setFormData(f => ({ ...f, loading_date: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">LR / Load ID</label>
+              <input
+                type="text"
+                required
+                value={formData.load_id}
+                onChange={(e) => setFormData(f => ({ ...f, load_id: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Client</label>
+              <select
+                value={formData.client_id}
+                onChange={(e) => setFormData(f => ({ ...f, client_id: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold bg-white"
+              >
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name || c.company_name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Vehicle</label>
+              <select
+                value={formData.vehicle_id}
+                onChange={(e) => setFormData(f => ({ ...f, vehicle_id: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold bg-white"
+              >
+                {vehicles.map(v => (
+                  <option key={v.id} value={v.id}>{v.vehicle_number || v.truck_number || v.registration_number || v.id}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">From Location</label>
+              <input
+                type="text"
+                required
+                value={formData.from_location}
+                onChange={(e) => setFormData(f => ({ ...f, from_location: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">To Location</label>
+              <input
+                type="text"
+                required
+                value={formData.to_location}
+                onChange={(e) => setFormData(f => ({ ...f, to_location: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Rate Type</label>
+              <select
+                value={formData.rate_type}
+                onChange={(e) => setFormData(f => ({ ...f, rate_type: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold bg-white"
+              >
+                <option value="MT">MT (Tonnage)</option>
+                <option value="fixed">Fixed Rate</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">
+                {formData.rate_type === 'fixed' ? 'Qty / Units' : 'Weight (MT)'}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.tons}
+                onChange={(e) => setFormData(f => ({ ...f, tons: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Billing Rate (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={formData.freight_rate}
+                onChange={(e) => setFormData(f => ({ ...f, freight_rate: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Lorry Hire Rate (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.vehicle_rate}
+                onChange={(e) => setFormData(f => ({ ...f, vehicle_rate: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Material / Goods</label>
+              <input
+                type="text"
+                value={formData.goods_description}
+                onChange={(e) => setFormData(f => ({ ...f, goods_description: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-brand-navy hover:bg-brand-navy-light text-white font-bold rounded-xl shadow transition"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

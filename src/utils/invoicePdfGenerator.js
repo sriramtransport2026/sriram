@@ -133,20 +133,15 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
       ? `-${Math.abs(otherChargesNet).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` 
       : `+${otherChargesNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-    const rateNum = Number(rate);
+    const rateNum = Number(rate || (t.unit_type === 'fixed' || t.rate_type === 'fixed' ? totalFreight : 0));
     const rateFormatted = rateNum > 0 
       ? rateNum.toLocaleString('en-IN', { minimumFractionDigits: rateNum % 1 === 0 ? 0 : 2 }) 
       : '';
 
-    let rateDisplay = '-';
-    if (t.unit_type === 'fixed') {
-      rateDisplay = rateFormatted ? `fixed (${rateFormatted})` : 'fixed';
-    } else if (t.unit_type === 'custom') {
-      const u = (t.custom_unit || 'custom').toLowerCase();
-      rateDisplay = rateFormatted ? `${u} (${rateFormatted})` : u;
-    } else {
-      rateDisplay = rateFormatted ? `MT (${rateFormatted})` : (rateFormatted || '-');
-    }
+    const isFixedUnit = t.unit_type === 'fixed' || t.rate_type === 'fixed';
+    const qtyText = isFixedUnit 
+      ? 'FIXED' 
+      : (charged > 0 ? `${charged.toLocaleString('en-IN', { minimumFractionDigits: charged % 1 === 0 ? 0 : 2 })} MT` : '1.00 MT');
 
     let rawVehNo = t.vehicle?.vehicle_number || t.vehicle_number;
     if (!rawVehNo && t.vehicle_id) {
@@ -165,7 +160,8 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
       cleanVehNo,
       (t.from_location || 'BANGALORE').toUpperCase(),
       (t.to_location || '-').toUpperCase(),
-      rateDisplay,
+      qtyText,
+      rateFormatted || '-',
       Number(baseAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
     ];
 
@@ -177,6 +173,9 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
     return row;
   });
 
+  const isAllFixed = trips.length > 0 && trips.every(t => t.unit_type === 'fixed' || t.rate_type === 'fixed');
+  const qtyHeaderLabel = isAllFixed ? 'FIXED' : 'MT';
+
   const headers = [
     'SNO',
     'DATE',
@@ -184,6 +183,7 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
     'VEHICLE NO',
     'FROM',
     'TO',
+    qtyHeaderLabel,
     'RATE',
     'AMOUNT',
   ];
@@ -193,7 +193,7 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
   }
   headers.push('TOTAL');
 
-  // Autotable: EXACT SNO, DATE, LRNO, VEHICLE NO, FROM, TO, RATE, AMOUNT, (OTHER CHARGES), TOTAL
+  // Autotable: EXACT SNO, DATE, LRNO, VEHICLE NO, FROM, TO, QTY / MT, RATE, AMOUNT, (OTHER CHARGES), TOTAL
   doc.autoTable({
     startY: margin + 55,
     margin: { left: margin, right: margin },
@@ -201,7 +201,7 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
     body: tableRows,
     theme: 'grid',
     styles: {
-      fontSize: 6.2,
+      fontSize: 6.0,
       cellPadding: 2,
       lineColor: [100, 100, 100],
       lineWidth: 0.15,
@@ -214,16 +214,17 @@ export function generateInvoicePDF({ invoice, client, trips, vehicles = [], comp
       halign: 'center',
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 10 },
-      1: { halign: 'center', cellWidth: 18 },
-      2: { halign: 'center', cellWidth: 18 },
-      3: { halign: 'center', cellWidth: 22 },
-      4: { cellWidth: 23 },
-      5: { cellWidth: 23 },
-      6: { halign: 'right', cellWidth: 22 },
-      7: { halign: 'right', cellWidth: 18 },
-      8: { halign: 'right', cellWidth: 18 },
-      9: { halign: 'right', cellWidth: 18 },
+      0: { halign: 'center', cellWidth: 8 },
+      1: { halign: 'center', cellWidth: 16 },
+      2: { halign: 'center', cellWidth: 16 },
+      3: { halign: 'center', cellWidth: 20 },
+      4: { cellWidth: 19 },
+      5: { cellWidth: 19 },
+      6: { halign: 'center', cellWidth: 16 },
+      7: { halign: 'right', cellWidth: 17 },
+      8: { halign: 'right', cellWidth: 17 },
+      9: { halign: 'right', cellWidth: 17 },
+      10: { halign: 'right', cellWidth: 17 },
     },
   });
 

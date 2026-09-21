@@ -1654,7 +1654,10 @@ export const db = {
     const targetId = resolveClientId(id) || id;
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('clients').delete().eq('id', targetId);
+        const { error } = await supabase.from('clients').delete().eq('id', targetId);
+        if (error && targetId !== id) {
+          await supabase.from('clients').delete().eq('id', id);
+        }
       } catch (err) {
         console.warn('Supabase deleteClient error:', err);
       }

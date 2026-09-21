@@ -161,6 +161,9 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                 return Math.abs(otherNet) > 0.01;
               });
 
+              const isAllFixed = trips.length > 0 && trips.every(t => t.unit_type === 'fixed' || t.rate_type === 'fixed');
+              const qtyHeaderLabel = isAllFixed ? 'FIXED' : 'MT';
+
               return (
                 <div className="border border-slate-700 overflow-x-auto w-full">
                   <table className="w-full min-w-[680px] text-left text-[10px] border-collapse">
@@ -172,7 +175,8 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                         <th className="border-r border-slate-700 py-2.5 px-2 text-center w-24">VEHICLE NO</th>
                         <th className="border-r border-slate-700 py-2.5 px-2 text-left">FROM</th>
                         <th className="border-r border-slate-700 py-2.5 px-2 text-left">TO</th>
-                        <th className="border-r border-slate-700 py-2.5 px-2 text-right w-28">RATE</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-center w-24">{qtyHeaderLabel}</th>
+                        <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">RATE</th>
                         <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">AMOUNT</th>
                         {hasOtherCharges && (
                           <th className="border-r border-slate-700 py-2.5 px-2 text-right w-24">OTHER CHARGES</th>
@@ -182,8 +186,8 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                     </thead>
                     <tbody className="divide-y divide-slate-300">
                       {trips.map((t, idx) => {
-                        const charged = parseFloat(t.charged_weight) || 0;
-                        const rate = parseFloat(t.rate) || 0;
+                        const charged = parseFloat(t.charged_weight || t.tons || t.quantity) || 0;
+                        const rate = parseFloat(t.rate || t.freight_rate) || 0;
                         const totalFreight = parseFloat(t.freight_amount) || 0;
                         const baseAmount = (charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight;
 
@@ -202,22 +206,15 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                           otherChargesNet = totalFreight - baseAmount;
                         }
 
-                        // Format Rate with unit beside it: e.g. mt (100) or fixed(100)
-                        const rateNum = Number(rate);
+                        const rateNum = Number(rate || (t.unit_type === 'fixed' || t.rate_type === 'fixed' ? totalFreight : 0));
                         const rateFormatted = rateNum > 0 
                           ? rateNum.toLocaleString('en-IN', { minimumFractionDigits: rateNum % 1 === 0 ? 0 : 2 }) 
                           : '';
 
-                        let rateDisplay = '-';
-                        if (t.unit_type === 'fixed') {
-                          rateDisplay = rateFormatted ? `fixed (${rateFormatted})` : 'fixed';
-                        } else if (t.unit_type === 'custom') {
-                          const u = (t.custom_unit || 'custom').toLowerCase();
-                          rateDisplay = rateFormatted ? `${u} (${rateFormatted})` : u;
-                        } else {
-                          // default MT
-                          rateDisplay = rateFormatted ? `MT (${rateFormatted})` : (rateFormatted || '-');
-                        }
+                        const isFixedUnit = t.unit_type === 'fixed' || t.rate_type === 'fixed';
+                        const qtyText = isFixedUnit 
+                          ? 'FIXED' 
+                          : (charged > 0 ? `${charged.toLocaleString('en-IN', { minimumFractionDigits: charged % 1 === 0 ? 0 : 2 })} MT` : '1.00 MT');
 
                         // Strip any bracketed notes from vehicle number with fallback resolution
                         let rawVehNo = t.vehicle?.vehicle_number || t.vehicle_number;
@@ -238,8 +235,11 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                             <td className="border-r border-slate-700 py-2 px-2 text-center font-mono font-bold text-slate-800">{cleanVehNo}</td>
                             <td className="border-r border-slate-700 py-2 px-2 font-medium uppercase text-slate-700">{t.from_location || 'BANGALORE'}</td>
                             <td className="border-r border-slate-700 py-2 px-2 font-bold uppercase text-slate-900">{t.to_location || '-'}</td>
+                            <td className="border-r border-slate-700 py-2 px-2 text-center font-mono font-bold text-slate-800 whitespace-nowrap">
+                              <span className={isFixedUnit ? "text-[9.5px] font-black uppercase text-slate-700" : "text-[10px] font-bold text-slate-900"}>{qtyText}</span>
+                            </td>
                             <td className="border-r border-slate-700 py-2 px-2 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
-                              {rateDisplay}
+                              {rateFormatted ? rateFormatted : '-'}
                             </td>
                             <td className="border-r border-slate-700 py-2 px-2 text-right font-mono font-semibold text-slate-800">
                               ₹{Number(baseAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
