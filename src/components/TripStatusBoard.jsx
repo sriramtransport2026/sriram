@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ArrowLeft, 
   Search, 
@@ -20,7 +20,9 @@ import {
   CreditCard,
   Trash2,
   Edit3,
-  X
+  X,
+  Building2,
+  ChevronDown
 } from 'lucide-react';
 import { LRUploadModal } from './LRUploadModal';
 import logoImg from '../assets/logo.png';
@@ -29,9 +31,32 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedClientFilter, setSelectedClientFilter] = useState('all');
   const [activeTripForLRModal, setActiveTripForLRModal] = useState(null);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [editingBookedTrip, setEditingBookedTrip] = useState(null);
+
+  // Extract unique client options for filter dropdown
+  const clientOptions = useMemo(() => {
+    const map = new Map();
+    if (Array.isArray(clients)) {
+      clients.forEach(c => {
+        if (c && c.id && c.name) {
+          map.set(c.id, { id: c.id, name: c.name });
+        }
+      });
+    }
+    if (Array.isArray(trips)) {
+      trips.forEach(t => {
+        const cId = t.client_id || t.client?.id || t.client?.name || t.client_name;
+        const cName = t.client?.name || t.client_name;
+        if (cId && cName && !map.has(cId)) {
+          map.set(cId, { id: cId, name: cName });
+        }
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, trips]);
 
   // Filter trips
   const filteredTrips = trips.filter(trip => {
@@ -39,11 +64,19 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
       (trip.load_id?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (trip.vehicle?.vehicle_number?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (trip.client?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (trip.client_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (trip.to_location?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (trip.lr_number?.toLowerCase() || '').includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || trip.status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    const matchesClient = selectedClientFilter === 'all' ||
+      trip.client_id === selectedClientFilter ||
+      trip.client?.id === selectedClientFilter ||
+      trip.client?.name === selectedClientFilter ||
+      trip.client_name === selectedClientFilter;
+
+    return matchesSearch && matchesStatus && matchesClient;
   });
 
   const bookedTrips = filteredTrips.filter(t => t.status === 'booked');
@@ -117,16 +150,33 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
 
       {/* Control Bar: Search, Filter, and Kanban/Table toggle */}
       <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-soft border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-        {/* Search */}
-        <div className="relative flex-1 w-full md:max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search Load ID, Vehicle #, Client, City, LR #..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition"
-          />
+        {/* Search & Client Filter */}
+        <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full md:max-w-xl">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search Load ID, Vehicle #, Client, City, LR #..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition"
+            />
+          </div>
+
+          <div className="relative w-full sm:w-56 shrink-0">
+            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select
+              value={selectedClientFilter}
+              onChange={(e) => setSelectedClientFilter(e.target.value)}
+              className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition appearance-none cursor-pointer"
+            >
+              <option value="all">All Clients / Companies ({clientOptions.length})</option>
+              {clientOptions.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Filter & View Switcher */}

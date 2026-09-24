@@ -242,7 +242,7 @@ export function LRUploadModal({ trip, isOpen, onClose, onSuccess }) {
           {/* Trip Summary Header Strip */}
           <div className="bg-slate-50 border-b border-slate-200/70 px-6 py-2.5 text-xs text-slate-600 flex flex-wrap justify-between items-center gap-2">
             <div className="flex items-center space-x-1.5">
-              <span className="text-slate-400 font-medium">LOAD ID:</span>
+              <span className="text-slate-400 font-medium">LR NO:</span>
               <span className="font-bold text-slate-900 font-mono bg-white px-2 py-0.5 rounded border border-slate-200">
                 #{trip.load_id}
               </span>

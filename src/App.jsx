@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CheckCircle2, X } from 'lucide-react';
 import { db } from './services/db';
 import { Dashboard } from './components/Dashboard';
 import { NewTripEntry } from './components/NewTripEntry';
@@ -27,6 +28,7 @@ export function App() {
     return db.getActiveCompanyGstin();
   });
   const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [successModal, setSuccessModal] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'new-trip' | 'status-board' | 'invoices' | 'clients' | 'vehicles' | 'reports' | 'payments' | 'settings' | 'users'
   const [clients, setClients] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -173,15 +175,34 @@ export function App() {
       company_name: activeCompany.company_name
     });
     await loadAllData();
+    setSuccessModal({
+      title: tripData.id ? "Trip Updated Successfully!" : "New Trip Booked & Submitted!",
+      message: `Consignment Load #${tripData.load_id || tripData.lr_number || ''} details have been saved to the database.`,
+      actionLabel: "Go to Status Board",
+      onAction: () => setCurrentView('status-board')
+    });
   };
 
   const handleUpdateTripStatus = async (tripId, newStatus) => {
     await db.updateTripStatus(tripId, newStatus);
     await loadAllData();
+    const label = newStatus === 'in_transit' ? 'In Transit (Dispatched)' : newStatus === 'completed' ? 'Completed' : newStatus;
+    setSuccessModal({
+      title: "Trip Status Updated!",
+      message: `Consignment status changed to "${label}".`,
+      actionLabel: "View Status Board",
+      onAction: () => setCurrentView('status-board')
+    });
   };
 
   const handleTripCompleted = async (completedTrip) => {
     await loadAllData();
+    setSuccessModal({
+      title: "Consignment Completed & Signed POD Uploaded!",
+      message: `Trip #${completedTrip?.load_id || completedTrip?.lr_number || ''} completed with proof of delivery.`,
+      actionLabel: "Go to Payments",
+      onAction: () => setCurrentView('payments')
+    });
   };
 
   // INVOICE ACTIONS
@@ -192,6 +213,12 @@ export function App() {
       company_name: activeCompany.company_name
     });
     await loadAllData();
+    setSuccessModal({
+      title: "Tax Invoice Generated Successfully!",
+      message: `Tax Invoice #${inv?.invoice_number || invoicePayload.invoice_number || ''} has been created and saved.`,
+      actionLabel: "View All Invoices",
+      onAction: () => setCurrentView('invoices')
+    });
     return inv;
   };
 
@@ -202,6 +229,12 @@ export function App() {
       company_name: activeCompany.company_name
     });
     await loadAllData();
+    setSuccessModal({
+      title: "Direct Entry Submitted Successfully!",
+      message: `Direct Invoice #${result?.invoice?.invoice_number || directPayload.invoice_number || ''} and completed trip records created.`,
+      actionLabel: "View Invoices",
+      onAction: () => setCurrentView('invoices')
+    });
     return result;
   };
 
@@ -213,6 +246,12 @@ export function App() {
       company_name: clientData.company_name || activeCompany.company_name
     });
     await loadAllData();
+    setSuccessModal({
+      title: "Client Profile Saved!",
+      message: `Client account "${clientData.name || ''}" saved successfully.`,
+      actionLabel: "View Client Directory",
+      onAction: () => setCurrentView('clients')
+    });
     return saved;
   };
 
@@ -229,6 +268,12 @@ export function App() {
       company_name: vehicleData.company_name || activeCompany.company_name
     });
     await loadAllData();
+    setSuccessModal({
+      title: "Vehicle Saved Successfully!",
+      message: `Lorry / Vehicle "${vehicleData.vehicle_number || vehicleData.truck_number || ''}" details saved.`,
+      actionLabel: "View Vehicles",
+      onAction: () => setCurrentView('vehicles')
+    });
     return saved;
   };
 
@@ -262,6 +307,12 @@ export function App() {
   const handleSavePayment = async (paymentPayload) => {
     const saved = await db.savePayment(paymentPayload);
     await loadAllData();
+    setSuccessModal({
+      title: "Payment Recorded Successfully!",
+      message: `Payment entry of ₹${Number(paymentPayload.amount || 0).toLocaleString('en-IN')} saved to ledger.`,
+      actionLabel: "View Payments",
+      onAction: () => setCurrentView('payments')
+    });
     return saved;
   };
 
@@ -480,6 +531,56 @@ export function App() {
           />
         )}
       </main>
+
+      {/* GLOBAL SUCCESS SUBMISSION POPUP MODAL */}
+      {successModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 text-center space-y-4 animate-scale-up relative">
+            <button
+              onClick={() => setSuccessModal(null)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner border border-emerald-200">
+              <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black text-slate-900 font-display">
+                {successModal.title || 'Submitted Successfully!'}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {successModal.message || 'Your data entry has been saved to database.'}
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-center space-x-3">
+              {successModal.onAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const act = successModal.onAction;
+                    setSuccessModal(null);
+                    if (act) act();
+                  }}
+                  className="px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light text-white font-bold text-xs rounded-xl shadow transition cursor-pointer"
+                >
+                  {successModal.actionLabel || 'View Details'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSuccessModal(null)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Company Selection Modal (Strictly Admin-Only) */}
       <CompanySelectionModal
