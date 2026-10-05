@@ -147,9 +147,15 @@ export function DirectInvoiceEntry({
       if (field === 'charged_weight' || field === 'rate' || field === 'unit_type') {
         const weight = parseFloat(row.charged_weight) || 0;
         const rate = parseFloat(row.rate) || 0;
-        if (weight > 0 && rate > 0) {
+        if (row.unit_type === 'MT-fixed' || row.unit_type === 'fixed') {
+          if (rate > 0) row.freight_amount = rate.toString();
+        } else if (weight > 0 && rate > 0) {
           row.freight_amount = (Math.round(weight * rate * 100) / 100).toString();
         }
+      }
+
+      if (field === 'freight_amount' && (row.unit_type === 'MT-fixed' || row.unit_type === 'fixed')) {
+        row.rate = value;
       }
 
       updated[index] = row;
@@ -269,30 +275,18 @@ export function DirectInvoiceEntry({
     e.preventDefault();
     setErrorMessage('');
 
-    if (!selectedClientId) {
-      setErrorMessage('Please select a Client for this direct invoice.');
-      return;
-    }
-
     if (!invoiceNumber.trim()) {
       setErrorMessage('Please enter an Invoice Number.');
       return;
     }
 
-    // Validate all trip rows
+    // Validate all trip rows: Only pricing details are mandatory!
     for (let i = 0; i < tripRows.length; i++) {
       const t = tripRows[i];
-      if (!t.vehicle_id) {
-        setErrorMessage(`Trip #${i + 1}: Please select a Vehicle.`);
-        return;
-      }
-      if (!t.to_location.trim()) {
-        setErrorMessage(`Trip #${i + 1}: Destination (To Location) is required.`);
-        return;
-      }
       const freight = parseFloat(t.freight_amount) || 0;
-      if (freight <= 0) {
-        setErrorMessage(`Trip #${i + 1}: Client Freight Amount must be greater than zero.`);
+      const rate = parseFloat(t.rate) || 0;
+      if (freight <= 0 && rate <= 0) {
+        setErrorMessage(`Trip #${i + 1}: Pricing details (Freight Amount or Rate) are mandatory.`);
         return;
       }
     }
@@ -833,6 +827,7 @@ export function DirectInvoiceEntry({
                           }`}
                         >
                           <option value="MT">MT</option>
+                          <option value="MT-fixed">MT-fixed</option>
                           <option value="fixed">Fixed</option>
                           <option value="custom">Custom</option>
                         </select>
@@ -851,7 +846,7 @@ export function DirectInvoiceEntry({
                     {/* Rate per Unit */}
                     <div className="space-y-1">
                       <label className="block text-[11px] font-bold text-slate-700">
-                        {row.unit_type === 'fixed' ? 'Rate / fixed (₹)' : 'Rate / Unit (₹)'}
+                        {row.unit_type === 'MT-fixed' ? 'Rate (₹)' : (row.unit_type === 'fixed' ? 'Rate / fixed (₹)' : 'Rate / Unit (₹)')}
                       </label>
                       <input
                         type="number"
@@ -879,7 +874,7 @@ export function DirectInvoiceEntry({
                     {/* Vehicle Freight / Lorry Hire */}
                     <div className="space-y-1">
                       <label className="block text-[11px] font-bold text-slate-700">
-                        {row.unit_type === 'fixed' ? 'Lorry Rate / fixed (₹)' : 'Lorry Hire (₹)'}
+                        {row.unit_type === 'MT-fixed' ? 'Lorry Rate (₹)' : (row.unit_type === 'fixed' ? 'Lorry Rate / fixed (₹)' : 'Lorry Hire (₹)')}
                       </label>
                       <input
                         type="number"

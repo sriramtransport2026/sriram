@@ -162,7 +162,8 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
               });
 
               const isAllFixed = trips.length > 0 && trips.every(t => t.unit_type === 'fixed' || t.rate_type === 'fixed');
-              const qtyHeaderLabel = isAllFixed ? 'FIXED' : 'MT';
+              const hasMTFixed = trips.some(t => t.unit_type === 'MT-fixed' || t.rate_type === 'MT-fixed');
+              const qtyHeaderLabel = isAllFixed ? 'FIXED' : (hasMTFixed ? 'MT / FIXED' : 'MT');
 
               return (
                 <div className="border border-slate-700 overflow-x-auto w-full">
@@ -189,7 +190,12 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                         const charged = parseFloat(t.charged_weight || t.tons || t.quantity) || 0;
                         const rate = parseFloat(t.rate || t.freight_rate) || 0;
                         const totalFreight = parseFloat(t.freight_amount) || 0;
-                        const baseAmount = (charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight;
+                        const isFixedUnit = t.unit_type === 'fixed' || t.rate_type === 'fixed';
+                        const isMTFixed = t.unit_type === 'MT-fixed' || t.rate_type === 'MT-fixed';
+
+                        const baseAmount = (isFixedUnit || isMTFixed) 
+                          ? totalFreight 
+                          : ((charged > 0 && rate > 0) ? Math.round(charged * rate * 100) / 100 : totalFreight);
 
                         let otherChargesNet = 0;
                         if (t.has_loading_unloading === 'yes' && t.loading_unloading_amount) {
@@ -206,14 +212,15 @@ export function InvoicePrintModal({ isOpen, onClose, invoice, client, trips = []
                           otherChargesNet = totalFreight - baseAmount;
                         }
 
-                        const rateNum = Number(rate || (t.unit_type === 'fixed' || t.rate_type === 'fixed' ? totalFreight : 0));
-                        const rateFormatted = rateNum > 0 
-                          ? rateNum.toLocaleString('en-IN', { minimumFractionDigits: rateNum % 1 === 0 ? 0 : 2 }) 
-                          : '';
+                        const rateNum = Number(rate || (isFixedUnit || isMTFixed ? totalFreight : 0));
+                        const rateFormatted = isMTFixed
+                          ? `${rateNum > 0 ? rateNum.toLocaleString('en-IN') : Number(totalFreight).toLocaleString('en-IN')} (FIXED)`
+                          : (rateNum > 0 ? rateNum.toLocaleString('en-IN', { minimumFractionDigits: rateNum % 1 === 0 ? 0 : 2 }) : '');
 
-                        const isFixedUnit = t.unit_type === 'fixed' || t.rate_type === 'fixed';
                         const qtyText = isFixedUnit 
                           ? 'FIXED' 
+                          : isMTFixed
+                          ? `${charged > 0 ? charged.toLocaleString('en-IN', { minimumFractionDigits: charged % 1 === 0 ? 0 : 2 }) : '1.00'} MT`
                           : (charged > 0 ? `${charged.toLocaleString('en-IN', { minimumFractionDigits: charged % 1 === 0 ? 0 : 2 })} MT` : '1.00 MT');
 
                         // Strip any bracketed notes from vehicle number with fallback resolution

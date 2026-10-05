@@ -22,19 +22,41 @@ import {
   Edit3,
   X,
   Building2,
-  ChevronDown
+  ChevronDown,
+  Download,
+  RotateCcw
 } from 'lucide-react';
 import { LRUploadModal } from './LRUploadModal';
 import logoImg from '../assets/logo.png';
+import { exportToCSV } from '../utils/excelExport';
 
 export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [], onUpdateTripStatus, onTripCompleted, onNavigateToPayments, onDeleteTrip, onSaveTrip }) {
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedClientFilter, setSelectedClientFilter] = useState('all');
+  const [operatingCompanyFilter, setOperatingCompanyFilter] = useState('all');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
   const [activeTripForLRModal, setActiveTripForLRModal] = useState(null);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [editingBookedTrip, setEditingBookedTrip] = useState(null);
+
+  const handleSmartDelete = (trip) => {
+    if (trip.status === 'completed') {
+      if (confirm(`Push back trip #${trip.load_id} status from Completed to In Transit?`)) {
+        onUpdateTripStatus(trip.id, 'in_transit');
+      }
+    } else if (trip.status === 'in_transit') {
+      if (confirm(`Push back trip #${trip.load_id} status from In Transit to Booked?`)) {
+        onUpdateTripStatus(trip.id, 'booked');
+      }
+    } else {
+      if (confirm(`Are you sure you want to permanently delete Booked load #${trip.load_id}?`)) {
+        if (onDeleteTrip) onDeleteTrip(trip.id);
+      }
+    }
+  };
 
   // Extract unique client options for filter dropdown
   const clientOptions = useMemo(() => {
@@ -76,8 +98,31 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
       trip.client?.name === selectedClientFilter ||
       trip.client_name === selectedClientFilter;
 
-    return matchesSearch && matchesStatus && matchesClient;
+    const matchesOperatingCompany = operatingCompanyFilter === 'all' ||
+      (trip.company_gstin || '33GUPS2382N1ZF') === operatingCompanyFilter;
+
+    const matchesStartDate = !startDateFilter || !trip.loading_date || trip.loading_date >= startDateFilter;
+    const matchesEndDate = !endDateFilter || !trip.loading_date || trip.loading_date <= endDateFilter;
+
+    return matchesSearch && matchesStatus && matchesClient && matchesOperatingCompany && matchesStartDate && matchesEndDate;
   });
+
+  const handleExportCSV = () => {
+    const rows = filteredTrips.map(t => ({
+      'Load ID / LR No': t.lr_number || t.load_id || '',
+      'Status': t.status,
+      'Loading Date': t.loading_date || '',
+      'Client': t.client?.name || t.client_name || '',
+      'Vehicle': t.vehicle?.vehicle_number || t.vehicle_number || '',
+      'From': t.from_location || '',
+      'To': t.to_location || '',
+      'Rate Unit Type': t.unit_type || t.rate_type || 'MT',
+      'Freight Billed (INR)': t.freight_amount || 0,
+      'Lorry Hire (INR)': t.vehicle_freight || 0,
+      'Operating GSTIN': t.company_gstin || '33GUPS2382N1ZF',
+    }));
+    exportToCSV('Trip_Status_Board.csv', rows);
+  };
 
   const bookedTrips = filteredTrips.filter(t => t.status === 'booked');
   const inTransitTrips = filteredTrips.filter(t => t.status === 'in_transit');
@@ -148,81 +193,131 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
         </div>
       </div>
 
-      {/* Control Bar: Search, Filter, and Kanban/Table toggle */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-soft border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-        {/* Search & Client Filter */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full md:max-w-xl">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Load ID, Vehicle #, Client, City, LR #..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition"
-            />
+      {/* Control Bar: Search, Company Filter, Date Filter, and View Switcher */}
+      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-soft border border-slate-200/80 space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Search, Client Filter & Operating Firm Filter */}
+          <div className="flex flex-wrap items-center gap-2 flex-1">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search Load ID, Vehicle #, Client, City, LR #..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition"
+              />
+            </div>
+
+            <div className="relative min-w-[180px]">
+              <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select
+                value={selectedClientFilter}
+                onChange={(e) => setSelectedClientFilter(e.target.value)}
+                className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition appearance-none cursor-pointer"
+              >
+                <option value="all">All Clients ({clientOptions.length})</option>
+                {clientOptions.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            </div>
+
+            <div className="relative min-w-[190px]">
+              <select
+                value={operatingCompanyFilter}
+                onChange={(e) => setOperatingCompanyFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition cursor-pointer"
+              >
+                <option value="all">All Operating Firms</option>
+                <option value="33GUPS2382N1ZF">SRI RAM TRANSPORT</option>
+                <option value="33GWYPP4027A1ZD">SRI RAM FREIGHT CARRIERS</option>
+              </select>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500">
+              <span>From:</span>
+              <input 
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-medium text-slate-700"
+              />
+              <span>To:</span>
+              <input 
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-medium text-slate-700"
+              />
+              {(startDateFilter || endDateFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
+                  className="text-rose-600 text-[11px] font-bold hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="relative w-full sm:w-56 shrink-0">
-            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <select
-              value={selectedClientFilter}
-              onChange={(e) => setSelectedClientFilter(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white transition appearance-none cursor-pointer"
+          {/* Filter & View Switcher */}
+          <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
             >
-              <option value="all">All Clients / Companies ({clientOptions.length})</option>
-              {clientOptions.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-          </div>
-        </div>
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Excel</span>
+            </button>
 
-        {/* Filter & View Switcher */}
-        <div className="flex flex-wrap items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto">
-          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar max-w-full">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              All ({trips.length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('booked')}
-              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'booked' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-amber-700'}`}
-            >
-              Booked ({trips.filter(t => t.status === 'booked').length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('in_transit')}
-              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'in_transit' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-blue-700'}`}
-            >
-              Transit ({trips.filter(t => t.status === 'in_transit').length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('completed')}
-              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'completed' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-emerald-700'}`}
-            >
-              Completed ({trips.filter(t => t.status === 'completed').length})
-            </button>
-          </div>
+            <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar max-w-full">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                All ({trips.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('booked')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'booked' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-amber-700'}`}
+              >
+                Booked ({trips.filter(t => t.status === 'booked').length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('in_transit')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'in_transit' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-blue-700'}`}
+              >
+                Transit ({trips.filter(t => t.status === 'in_transit').length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('completed')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === 'completed' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-emerald-700'}`}
+              >
+                Completed ({trips.filter(t => t.status === 'completed').length})
+              </button>
+            </div>
 
-          <div className="border-l border-slate-200 pl-2 sm:pl-3 flex items-center space-x-1 shrink-0">
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-2 rounded-xl border transition ${viewMode === 'kanban' ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-              title="Kanban Board View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2 rounded-xl border transition ${viewMode === 'table' ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-              title="Table View"
-            >
-              <List className="w-4 h-4" />
-            </button>
+            <div className="border-l border-slate-200 pl-2 flex items-center space-x-1 shrink-0">
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`p-2 rounded-xl border transition ${viewMode === 'kanban' ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                title="Kanban Board View"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2 rounded-xl border transition ${viewMode === 'table' ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                title="Table View"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -257,18 +352,14 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
-                      {onDeleteTrip && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
-                          }}
-                          className="text-slate-300 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
-                          title="Delete Trip"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleSmartDelete(trip)}
+                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
+                        title="Delete Trip"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
@@ -331,20 +422,24 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
                 <div key={trip.id} className="bg-white rounded-2xl p-4 shadow-soft border border-slate-200/80 space-y-3 hover:shadow-md transition">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold text-brand-navy">#{trip.load_id}</span>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1.5">
                       <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
-                      {onDeleteTrip && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
-                          }}
-                          className="text-slate-300 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
-                          title="Delete Trip"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditingBookedTrip(trip)}
+                        className="text-slate-400 hover:text-brand-navy p-0.5 rounded cursor-pointer transition"
+                        title="Edit Load Details"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSmartDelete(trip)}
+                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
+                        title="Delete (Push back to Booked)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
@@ -416,20 +511,24 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1.5">
                       <span className="text-[11px] text-slate-500">{trip.loading_date}</span>
-                      {onDeleteTrip && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
-                          }}
-                          className="text-slate-300 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
-                          title="Delete Trip"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditingBookedTrip(trip)}
+                        className="text-slate-400 hover:text-brand-navy p-0.5 rounded cursor-pointer transition"
+                        title="Edit Load Details"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSmartDelete(trip)}
+                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer transition"
+                        title="Delete (Push back to In Transit)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
@@ -573,62 +672,66 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
                       )}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {trip.status === 'booked' && (
-                        <button
-                          onClick={() => handleAdvanceStatus(trip)}
-                          className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold text-[11px] transition"
-                        >
-                          Dispatch
-                        </button>
-                      )}
-                      {trip.status === 'in_transit' && (
-                        <button
-                          onClick={() => handleAdvanceStatus(trip)}
-                          className="px-3 py-1 bg-brand-green hover:bg-brand-green-dark text-white rounded-lg font-bold text-[11px] transition flex items-center space-x-1 mx-auto"
-                        >
-                          <ShieldCheck className="w-3 h-3" />
-                          <span>Upload LR</span>
-                        </button>
-                      )}
-                      {trip.status === 'completed' && (
-                        onNavigateToPayments ? (
+                      <div className="flex items-center justify-center space-x-1.5">
+                        {trip.status === 'booked' && (
                           <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onNavigateToPayments(trip.id || trip.load_id);
-                            }}
-                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[10px] font-extrabold transition cursor-pointer"
+                            onClick={() => handleAdvanceStatus(trip)}
+                            className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold text-[11px] transition cursor-pointer"
                           >
-                            <CreditCard className="w-3 h-3" />
-                            <span>Payments</span>
+                            Dispatch
                           </button>
-                        ) : (
-                          <span className="text-slate-400 text-[11px] font-medium">Completed</span>
-                        )
-                      )}
-                      {onDeleteTrip && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete trip #${trip.load_id}?`)) onDeleteTrip(trip.id);
-                          }}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition ml-1.5 cursor-pointer inline-block"
-                          title="Delete Trip"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {trip.status === 'booked' && (
+                        )}
+                        {trip.status === 'in_transit' && (
+                          <button
+                            onClick={() => handleAdvanceStatus(trip)}
+                            className="px-2.5 py-1 bg-brand-green hover:bg-brand-green-dark text-white rounded-lg font-bold text-[11px] transition flex items-center space-x-1 cursor-pointer"
+                          >
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>Upload LR</span>
+                          </button>
+                        )}
+                        {trip.status === 'completed' && (
+                          onNavigateToPayments ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigateToPayments(trip.id || trip.load_id);
+                              }}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[10px] font-extrabold transition cursor-pointer"
+                            >
+                              <CreditCard className="w-3 h-3" />
+                              <span>Payments</span>
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] font-medium">Completed</span>
+                          )
+                        )}
+
                         <button
                           type="button"
                           onClick={() => setEditingBookedTrip(trip)}
-                          className="p-1 text-slate-400 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition ml-1 cursor-pointer inline-block"
-                          title="Edit Booked Load"
+                          className="p-1 text-slate-400 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                          title="Edit Load Details"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                      )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleSmartDelete(trip)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          title={
+                            trip.status === 'completed' 
+                              ? 'Delete (Push back to In Transit)' 
+                              : trip.status === 'in_transit' 
+                              ? 'Delete (Push back to Booked)' 
+                              : 'Delete Load'
+                          }
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -715,9 +818,10 @@ function EditBookedTripModal({ trip, clients = [], vehicles = [], onClose, onSav
     e.preventDefault();
     const tonsVal = parseFloat(formData.tons) || 0;
     const rateVal = parseFloat(formData.freight_rate) || 0;
-    const freightAmount = formData.rate_type === 'fixed' ? rateVal : (tonsVal * rateVal);
+    const isFixedAmt = formData.rate_type === 'fixed' || formData.rate_type === 'MT-fixed';
+    const freightAmount = isFixedAmt ? rateVal : (tonsVal * rateVal);
     const vhRateVal = parseFloat(formData.vehicle_rate) || 0;
-    const vehicleFreight = formData.rate_type === 'fixed' ? vhRateVal : (tonsVal * vhRateVal);
+    const vehicleFreight = isFixedAmt ? vhRateVal : (tonsVal * vhRateVal);
     const profit = freightAmount - vehicleFreight;
 
     const selectedClient = clients.find(c => c.id === formData.client_id) || matchedClient;
@@ -835,6 +939,7 @@ function EditBookedTripModal({ trip, clients = [], vehicles = [], onClose, onSav
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl font-semibold bg-white"
               >
                 <option value="MT">MT (Tonnage)</option>
+                <option value="MT-fixed">MT - Fixed Lump Sum</option>
                 <option value="fixed">Fixed Rate</option>
               </select>
             </div>
@@ -851,7 +956,9 @@ function EditBookedTripModal({ trip, clients = [], vehicles = [], onClose, onSav
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Billing Rate (₹)</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">
+                {formData.rate_type === 'MT-fixed' ? 'Rate (₹)' : (formData.rate_type === 'fixed' ? 'Fixed Rate (₹)' : 'Billing Rate / MT (₹)')}
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -865,7 +972,9 @@ function EditBookedTripModal({ trip, clients = [], vehicles = [], onClose, onSav
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Lorry Hire Rate (₹)</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">
+                {formData.rate_type === 'MT-fixed' ? 'Lorry Rate (₹)' : (formData.rate_type === 'fixed' ? 'Fixed Lorry Rate (₹)' : 'Lorry Hire Rate / MT (₹)')}
+              </label>
               <input
                 type="number"
                 step="0.01"

@@ -87,7 +87,7 @@ export function UserManagementView({
     full_name: '',
     phone: '',
     role: 'staff',
-    operating_gstin: activeCompanyGstin || '33GUPS2382N1ZF',
+    operating_gstin: 'ALL',
     is_active: true,
     assigned_modules: ['new-trip', 'direct-invoice', 'status-board', 'invoices', 'clients', 'vehicles', 'reports', 'payments'],
     scope_type: 'all', // 'all' | 'specific'
@@ -123,7 +123,7 @@ export function UserManagementView({
     setEditingUser(null);
     setFormData({
       ...initialFormState,
-      operating_gstin: activeCompanyGstin || '33GUPS2382N1ZF'
+      operating_gstin: 'ALL'
     });
     setIsUserModalOpen(true);
   };
@@ -146,7 +146,7 @@ export function UserManagementView({
       full_name: user.full_name || '',
       phone: user.phone || '',
       role: user.role || 'staff',
-      operating_gstin: user.operating_gstin || '33GUPS2382N1ZF',
+      operating_gstin: user.operating_gstin || 'ALL',
       is_active: user.is_active !== false,
       assigned_modules: (Array.isArray(user.assigned_modules) && user.assigned_modules.length > 0)
         ? user.assigned_modules
@@ -236,7 +236,7 @@ export function UserManagementView({
       const payload = {
         ...formData,
         id: editingUser ? editingUser.id : undefined,
-        operating_gstin: editingUser ? (formData.operating_gstin || activeCompanyGstin) : activeCompanyGstin,
+        operating_gstin: formData.operating_gstin || 'ALL',
         assigned_company_ids: formData.scope_type === 'all' ? ['ALL'] : formData.assigned_company_ids,
         assigned_company_name: formData.scope_type === 'all' ? 'All Companies' : formData.assigned_company_name
       };
@@ -317,12 +317,8 @@ export function UserManagementView({
     }
   };
 
-  // STRICT DUAL-GST USER ISOLATION:
-  // Only users strictly belonging to activeCompanyGstin are visible! Users for other GSTs will NEVER show.
-  const firmUsers = users.filter(u => {
-    const userGstin = u.operating_gstin || '33GUPS2382N1ZF';
-    return userGstin === activeCompanyGstin;
-  });
+  // Admin view: Show all users across all registered transport companies
+  const firmUsers = users;
 
   const filteredUsers = firmUsers.filter(u => {
     const term = searchTerm.toLowerCase();
@@ -581,12 +577,23 @@ export function UserManagementView({
                             <div className="text-slate-500 font-mono text-[11px]">
                               @{user.username} · {user.email}
                             </div>
-                            {user.phone && (
-                              <div className="text-slate-400 text-[10px] flex items-center space-x-1 mt-0.5">
-                                <Phone className="w-2.5 h-2.5" />
-                                <span>{user.phone}</span>
-                              </div>
-                            )}
+                            <div className="flex items-center space-x-2 mt-0.5">
+                              {user.phone && (
+                                <span className="text-slate-400 text-[10px] flex items-center space-x-1">
+                                  <Phone className="w-2.5 h-2.5" />
+                                  <span>{user.phone}</span>
+                                </span>
+                              )}
+                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${
+                                user.operating_gstin === 'ALL'
+                                  ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                  : (user.operating_gstin === '33GWYPP4027A1ZD'
+                                      ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                      : 'bg-amber-50 text-amber-900 border-amber-200')
+                              }`}>
+                                {user.operating_gstin === 'ALL' ? '★ Both Companies' : (user.operating_gstin === '33GWYPP4027A1ZD' ? 'Sri Ram Freight' : 'Sri Ram Transport')}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -886,6 +893,20 @@ export function UserManagementView({
                       <option value="manager">Dispatch Manager</option>
                       <option value="staff">Operations Staff</option>
                       <option value="accountant">Accountant / Billing</option>
+                    </select>
+                  </div>
+
+                  {/* Operating Firm / Company GSTIN Access */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">Assigned Operating Firm</label>
+                    <select
+                      value={formData.operating_gstin}
+                      onChange={(e) => setFormData(prev => ({ ...prev, operating_gstin: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-navy"
+                    >
+                      <option value="ALL">★ BOTH Companies (Allow User to Switch)</option>
+                      <option value="33GUPS2382N1ZF">SRI RAM TRANSPORT (33GUPS2382N1ZF)</option>
+                      <option value="33GWYPP4027A1ZD">SRI RAM FREIGHT CARRIERS (33GWYPP4027A1ZD)</option>
                     </select>
                   </div>
                 </div>

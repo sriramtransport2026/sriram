@@ -27,6 +27,7 @@ import { generateInvoicePDF } from '../utils/invoicePdfGenerator';
 import { InvoicePrintModal } from './InvoicePrintModal';
 import { getNextInvoiceNumber } from '../services/db';
 import logoImg from '../assets/logo.png';
+import { exportToCSV } from '../utils/excelExport';
 
 export function GenerateInvoice({ 
   onBack, 
@@ -51,6 +52,9 @@ export function GenerateInvoice({
   // Pagination & Search state for Generated Invoices History (10 per page)
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [operatingCompanyFilter, setOperatingCompanyFilter] = useState('all');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
   
   // Modal for reviewing / printing newly generated or past invoice
   const [viewInvoiceModal, setViewInvoiceModal] = useState({
@@ -178,18 +182,41 @@ export function GenerateInvoice({
     });
   };
 
-  // Filter invoices for active search query
+  // Filter invoices for active search query & company/date filters
   const filteredInvoices = useMemo(() => {
-    if (!historySearchTerm.trim()) return invoices;
-    const term = historySearchTerm.toLowerCase().trim();
     return invoices.filter(inv => {
       const clientName = (inv.client?.name || clients.find(c => c.id === inv.client_id)?.name || '').toLowerCase();
       const invNum = (inv.invoice_number || '').toLowerCase();
       const invDate = (inv.invoice_date || '').toLowerCase();
       const netAmt = (inv.net_amount ? String(inv.net_amount) : '').toLowerCase();
-      return invNum.includes(term) || clientName.includes(term) || invDate.includes(term) || netAmt.includes(term);
+
+      const term = historySearchTerm.toLowerCase().trim();
+      const matchesSearch = !term || invNum.includes(term) || clientName.includes(term) || invDate.includes(term) || netAmt.includes(term);
+
+      const matchesCompany = operatingCompanyFilter === 'all' || (inv.company_gstin || '33GUPS2382N1ZF') === operatingCompanyFilter;
+      const matchesStartDate = !startDateFilter || !inv.invoice_date || inv.invoice_date >= startDateFilter;
+      const matchesEndDate = !endDateFilter || !inv.invoice_date || inv.invoice_date <= endDateFilter;
+
+      return matchesSearch && matchesCompany && matchesStartDate && matchesEndDate;
     });
-  }, [invoices, historySearchTerm, clients]);
+  }, [invoices, historySearchTerm, clients, operatingCompanyFilter, startDateFilter, endDateFilter]);
+
+  const handleExportCSV = () => {
+    const rows = filteredInvoices.map(inv => {
+      const clientName = inv.client?.name || clients.find(c => c.id === inv.client_id)?.name || 'Client';
+      return {
+        'Invoice Number': inv.invoice_number || '',
+        'Invoice Date': inv.invoice_date || '',
+        'Client Name': clientName,
+        'Trips Count': (inv.trips && inv.trips.length > 0) ? inv.trips.length : 1,
+        'Sub Total (INR)': inv.sub_total || 0,
+        'GST Amount (INR)': inv.gst_amount || 0,
+        'Net Amount (INR)': inv.net_amount || 0,
+        'Company GSTIN': inv.company_gstin || '33GUPS2382N1ZF'
+      };
+    });
+    exportToCSV('Generated_Invoices_Summary.csv', rows);
+  };
 
   const totalHistoryPages = Math.max(1, Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE));
   const safeCurrentPage = Math.min(Math.max(1, historyCurrentPage), totalHistoryPages);
@@ -507,9 +534,9 @@ export function GenerateInvoice({
               </div>
             </div>
 
-            {/* Quick Search Filter */}
-            <div className="flex items-center space-x-2">
-              <div className="relative w-full md:w-72">
+            {/* Quick Search, Company & Date Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[200px]">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
@@ -535,6 +562,45 @@ export function GenerateInvoice({
                   </button>
                 )}
               </div>
+
+              {/* Company Filter */}
+              <select 
+                value={operatingCompanyFilter} 
+                onChange={(e) => setOperatingCompanyFilter(e.target.value)} 
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
+              >
+                <option value="all">All Operating Firms</option>
+                <option value="33GUPS2382N1ZF">SRI RAM TRANSPORT</option>
+                <option value="33GWYPP4027A1ZD">SRI RAM FREIGHT CARRIERS</option>
+              </select>
+
+              {/* Date Range Filters */}
+              <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500">
+                <span>From:</span>
+                <input 
+                  type="date"
+                  value={startDateFilter}
+                  onChange={(e) => setStartDateFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-medium text-slate-700"
+                />
+                <span>To:</span>
+                <input 
+                  type="date"
+                  value={endDateFilter}
+                  onChange={(e) => setEndDateFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-medium text-slate-700"
+                />
+              </div>
+
+              {/* Export Button */}
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Excel</span>
+              </button>
             </div>
           </div>
 

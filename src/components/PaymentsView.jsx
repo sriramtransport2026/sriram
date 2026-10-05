@@ -2,10 +2,11 @@ import React, { useState, useMemo } from "react";
 import { 
   ArrowLeft, Search, CreditCard, Banknote, CheckCircle2, AlertCircle, Clock, 
   Plus, Calendar, X, DollarSign, Receipt, Truck, MapPin, History, Info, ChevronRight,
-  List, LayoutGrid
+  List, LayoutGrid, Download, Building2
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import { cleanUTR, isValidUTR } from "../utils/validation";
+import { exportToCSV } from "../utils/excelExport";
 
 export function PaymentsView({
   onBack,
@@ -20,6 +21,9 @@ export function PaymentsView({
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState(null);
@@ -267,16 +271,27 @@ export function PaymentsView({
       // 2. Client filter
       if (clientFilter !== "all" && trip.client_id !== clientFilter) return false;
 
-      // 3. Search query filter
+      // 3. Company filter
+      if (companyFilter !== "all") {
+        const cGstin = trip.company_gstin || trip.operating_gstin || '33GUPS2382N1ZF';
+        if (cGstin !== companyFilter) return false;
+      }
+
+      // 4. Date Range filter
+      if (startDateFilter && trip.loading_date && trip.loading_date < startDateFilter) return false;
+      if (endDateFilter && trip.loading_date && trip.loading_date > endDateFilter) return false;
+
+      // 5. Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchId = (trip.load_id || "").toLowerCase().includes(q);
         const matchLr = (trip.lr_number || "").toLowerCase().includes(q);
+        const matchInv = (trip.invoice_number || trip.direct_invoice_number || trip.ref_invoice_number || "").toLowerCase().includes(q);
         const matchClient = (trip.clientName || "").toLowerCase().includes(q);
         const matchFrom = (trip.from_location || "").toLowerCase().includes(q);
         const matchTo = (trip.to_location || "").toLowerCase().includes(q);
         const matchConsignee = (trip.consignee || "").toLowerCase().includes(q);
-        if (!matchId && !matchLr && !matchClient && !matchFrom && !matchTo && !matchConsignee) {
+        if (!matchId && !matchLr && !matchInv && !matchClient && !matchFrom && !matchTo && !matchConsignee) {
           return false;
         }
       }
@@ -305,7 +320,34 @@ export function PaymentsView({
       halfCount: halfC,
       fullCount: fullC
     };
-  }, [tripsWithPayments, activeTab, clientFilter, searchQuery]);
+  }, [tripsWithPayments, activeTab, clientFilter, companyFilter, startDateFilter, endDateFilter, searchQuery]);
+
+  const getGeneratedInvoiceNum = (trip) => {
+    if (trip.generated_invoice_number) return trip.generated_invoice_number;
+    if (trip.direct_invoice_number) return trip.direct_invoice_number;
+    if (trip.invoice_id && trip.invoice_number) return trip.invoice_number;
+    return null;
+  };
+
+  const handleExportCSV = () => {
+    const rows = filteredTrips.map(t => {
+      const invNum = getGeneratedInvoiceNum(t);
+      return {
+        'Invoice Number / LR No': invNum ? `Inv: ${invNum}` : `LR: ${t.lr_number || t.load_id}`,
+        'Loading Date': t.loading_date || '',
+        'Client': t.clientName || '',
+        'From': t.from_location || '',
+        'To': t.to_location || '',
+        'Freight Billed (INR)': t.freightAmount,
+        'Total Paid (INR)': t.totalPaidAmount,
+        'Balance Due (INR)': t.balanceAmount,
+        'Payment Status': t.status,
+        'Vehicle Number': t.vehicle_number || t.vehicle?.vehicle_number || '',
+        'Company GSTIN': t.company_gstin || '33GUPS2382N1ZF'
+      };
+    });
+    exportToCSV('Payments_Summary.csv', rows);
+  };
 
   const statusCfg = {
     pending: { label: "Pending", color: "bg-rose-50 text-rose-700 border-rose-300", icon: <Clock className="w-3 h-3" /> },
@@ -407,57 +449,113 @@ export function PaymentsView({
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 flex-1">
-            <div className="relative w-full sm:w-80">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1">
+            {/* Search Query */}
+            <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
                 value={searchQuery} 
                 onChange={(e) => setSearchQuery(e.target.value)} 
-                placeholder="Search LR No, Client, Route..." 
+                placeholder="Search Invoice, LR, Client..." 
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy" 
               />
             </div>
-            <div className="flex items-center space-x-2">
+
+            {/* Client Filter */}
+            <div className="flex items-center space-x-1.5">
               <span className="text-xs font-bold text-slate-500 shrink-0">Client:</span>
               <select 
                 value={clientFilter} 
                 onChange={(e) => setClientFilter(e.target.value)} 
-                className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
               >
                 <option value="all">All Clients ({clients.length})</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
+
+            {/* Company Filter */}
+            <div className="flex items-center space-x-1.5">
+              <span className="text-xs font-bold text-slate-500 shrink-0">Company:</span>
+              <select 
+                value={companyFilter} 
+                onChange={(e) => setCompanyFilter(e.target.value)} 
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-brand-navy"
+              >
+                <option value="all">All Operating Firms</option>
+                <option value="33GUPS2382N1ZF">SRI RAM TRANSPORT</option>
+                <option value="33GWYPP4027A1ZD">SRI RAM FREIGHT CARRIERS</option>
+              </select>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500">
+              <span>From:</span>
+              <input 
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-medium text-slate-700"
+              />
+              <span>To:</span>
+              <input 
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-medium text-slate-700"
+              />
+              {(startDateFilter || endDateFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
+                  className="text-rose-600 text-[11px] font-bold hover:underline"
+                >
+                  Clear Date
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Layout View Toggle (Table / Cards) */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 self-start sm:self-auto">
+          <div className="flex items-center space-x-2 shrink-0 self-end md:self-auto">
+            {/* Export Excel / CSV Button */}
             <button
               type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                viewMode === 'table' 
-                  ? 'bg-white text-brand-navy shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
+              onClick={handleExportCSV}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
             >
-              <List className="w-3.5 h-3.5" />
-              <span>Table</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Excel</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                viewMode === 'cards' 
-                  ? 'bg-white text-brand-navy shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Cards</span>
-            </button>
+
+            {/* Layout View Toggle (Table / Cards) */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  viewMode === 'table' 
+                    ? 'bg-white text-brand-navy shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Table</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  viewMode === 'cards' 
+                    ? 'bg-white text-brand-navy shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Cards</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -476,7 +574,7 @@ export function PaymentsView({
             <table className="w-full text-left text-xs min-w-[850px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="py-3.5 px-4">LR Number</th>
+                  <th className="py-3.5 px-4">Invoice Number / LR No</th>
                   <th className="py-3.5 px-4">Date</th>
                   <th className="py-3.5 px-4">Client</th>
                   <th className="py-3.5 px-4">Route</th>
@@ -492,12 +590,19 @@ export function PaymentsView({
                 {filteredTrips.map(trip => {
                   const cfg = statusCfg[trip.status] || statusCfg.pending;
                   const isSettled = trip.status === "full_payment" || trip.balanceAmount <= 0;
+                  const invNum = getGeneratedInvoiceNum(trip);
                   return (
                     <tr key={trip.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-3.5 px-4 font-bold text-slate-900">
-                        <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-800 font-mono text-xs font-black border border-indigo-200">
-                          LR: {trip.lr_number || trip.load_id}
-                        </span>
+                        {invNum ? (
+                          <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-800 font-mono text-xs font-black border border-emerald-200">
+                            Inv: {invNum}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-800 font-mono text-xs font-black border border-indigo-200">
+                            LR: {trip.lr_number || trip.load_id}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">{trip.loading_date || '-'}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-800">{trip.clientName}</td>
@@ -558,6 +663,7 @@ export function PaymentsView({
             const cfg = statusCfg[trip.status] || statusCfg.pending;
             const isSettled = trip.status === "full_payment" || trip.balanceAmount <= 0;
             const paidPct = trip.freightAmount > 0 ? Math.min(100, Math.round((trip.totalPaidAmount / trip.freightAmount) * 100)) : 0;
+            const cardInvNum = getGeneratedInvoiceNum(trip);
             
             // Progression state for this trip
             const hasAdvancePaid = trip.hasAdvancePayment || trip.status === "advance" || trip.status === "half_payment" || (trip.totalPaidAmount > 0);
@@ -572,9 +678,15 @@ export function PaymentsView({
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
-                      <span className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-xs font-black">
-                        LR: {trip.lr_number || trip.load_id}
-                      </span>
+                      {cardInvNum ? (
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono text-xs font-black">
+                          Inv: {cardInvNum}
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-xs font-black">
+                          LR: {trip.lr_number || trip.load_id}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center space-x-3 text-[11px] text-slate-500">
                       <span className="flex items-center space-x-1">

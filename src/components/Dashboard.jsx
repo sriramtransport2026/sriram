@@ -215,12 +215,12 @@ export function Dashboard({
 
         {/* Company Switcher & User Profile */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Active Operating Firm Switcher (Switching is Admin-Only) */}
+          {/* Active Operating Firm Switcher */}
           <CompanySwitcher 
             activeGstin={companySettings?.gstin} 
-            onOpenModal={isUserAdmin ? onOpenCompanyModal : undefined} 
-            onToggleDirect={isUserAdmin ? onSwitchCompany : undefined} 
-            canSwitch={isUserAdmin}
+            onOpenModal={onOpenCompanyModal} 
+            onToggleDirect={onSwitchCompany} 
+            canSwitch={!!(onOpenCompanyModal || onSwitchCompany)}
           />
 
           {currentUser && (

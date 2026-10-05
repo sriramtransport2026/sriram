@@ -153,16 +153,20 @@ export function App() {
     setCurrentView(viewId);
   };
 
-  // COMPANY ENTITY SWITCHING (Strictly restricted to Admin)
+  // COMPANY ENTITY SWITCHING (Restricted to Admin & Staff assigned to ALL companies)
+  const canUserSwitchCompany = isUserAdmin || 
+    currentUser?.operating_gstin === 'ALL' || 
+    currentUser?.can_switch_companies === true;
+
   const handleSelectCompany = (gstin) => {
-    if (!isUserAdmin) return;
+    if (!canUserSwitchCompany) return;
     db.setActiveCompanyGstin(gstin);
     setActiveCompanyGstin(gstin);
     setShowCompanyModal(false);
   };
 
   const handleToggleCompanyDirect = () => {
-    if (!isUserAdmin) return;
+    if (!canUserSwitchCompany) return;
     const nextGstin = activeCompanyGstin === '33GUPS2382N1ZF' ? '33GWYPP4027A1ZD' : '33GUPS2382N1ZF';
     handleSelectCompany(nextGstin);
   };
@@ -389,8 +393,8 @@ export function App() {
             companySettings={activeCompany}
             currentUser={currentUser}
             onLogout={handleLogout}
-            onSwitchCompany={isUserAdmin ? handleToggleCompanyDirect : undefined}
-            onOpenCompanyModal={isUserAdmin ? () => setShowCompanyModal(true) : undefined}
+            onSwitchCompany={canUserSwitchCompany ? handleToggleCompanyDirect : undefined}
+            onOpenCompanyModal={canUserSwitchCompany ? () => setShowCompanyModal(true) : undefined}
           />
         )}
 

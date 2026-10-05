@@ -116,9 +116,12 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
     const charged = parseFloat(updated.charged_weight);
     const clientRate = parseFloat(updated.rate);
 
-    // 1. Freight Amount (Client Billed) is purely base client freight (Charged Weight × Client Rate)
-    // Other charges do NOT add to client freight
-    if (!isNaN(charged) && !isNaN(clientRate) && charged > 0 && clientRate > 0) {
+    // 1. Freight Amount (Client Billed)
+    if (updated.unit_type === 'MT-fixed' || updated.unit_type === 'fixed') {
+      if (!isNaN(clientRate) && clientRate > 0) {
+        updated.freight_amount = clientRate.toString();
+      }
+    } else if (!isNaN(charged) && !isNaN(clientRate) && charged > 0 && clientRate > 0) {
       const clientBase = Math.round(charged * clientRate * 100) / 100;
       updated.freight_amount = clientBase.toString();
     }
@@ -738,9 +741,10 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Billing Category / Unit of Measurement <span className="text-rose-500">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { id: 'MT', label: 'Metric Ton (MT)' },
+                    { id: 'MT-fixed', label: 'MT - Fixed' },
                     { id: 'fixed', label: 'Fixed' },
                     { id: 'custom', label: 'Custom Unit...' },
                   ].map((unit) => (
@@ -852,7 +856,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   {/* 2. Client Rate per Unit */}
                   <div className="space-y-1">
                     <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
-                      Rate per {currentUnit} (₹) <span className="text-rose-500 font-bold">*</span>
+                      {formData.unit_type === 'MT-fixed' ? 'Rate (₹)' : `Rate per ${currentUnit} (₹)`} <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
@@ -872,7 +876,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   {/* 3. Vehicle / Lorry Rate per Unit (Optional) */}
                   <div className="space-y-1">
                     <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
-                      Lorry Rate / {currentUnit} (₹) <span className="text-xs font-normal text-slate-400">(Optional)</span>
+                      {formData.unit_type === 'MT-fixed' ? 'Lorry Rate (₹)' : `Lorry Rate / ${currentUnit} (₹)`} <span className="text-xs font-normal text-slate-400">(Optional)</span>
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
