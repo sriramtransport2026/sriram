@@ -651,13 +651,6 @@ export function DirectInvoiceEntry({
                   {/* Trip Card Top Bar */}
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 text-xs">
                     <div className="flex items-center space-x-2.5">
-                      <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-700 font-black text-xs flex items-center justify-center">
-                        #{index + 1}
-                      </span>
-                      <span className="font-extrabold text-slate-800">
-                        Load #{row.load_id}
-                      </span>
-                      <span className="text-slate-300">·</span>
                       <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                         ⚡ Direct to Completed
                       </span>
@@ -689,7 +682,9 @@ export function DirectInvoiceEntry({
                     {/* Vehicle */}
                     <div className="sm:col-span-2 space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="block text-[11px] font-bold text-slate-700">Vehicle / Lorry *</label>
+                        <label className="block text-[11px] font-bold text-slate-700">
+                          Vehicle / Lorry <span className="text-xs font-normal text-slate-400">(Optional)</span>
+                        </label>
                         <button
                           type="button"
                           onClick={() => {
@@ -704,9 +699,9 @@ export function DirectInvoiceEntry({
                       <select
                         value={row.vehicle_id}
                         onChange={(e) => handleUpdateTripRow(index, 'vehicle_id', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:border-brand-navy"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:bg-white focus:border-brand-navy"
                       >
-                        <option value="">-- Select Lorry --</option>
+                        <option value="">-- Select Lorry (Optional) --</option>
                         {vehicles.map(v => (
                           <option key={v.id} value={v.id}>
                             {v.vehicle_number}
