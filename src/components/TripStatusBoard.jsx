@@ -39,7 +39,7 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
   const [activeTripForLRModal, setActiveTripForLRModal] = useState(null);
-  const [previewDocUrl, setPreviewDocUrl] = useState(null);
+  const [previewLRDocs, setPreviewLRDocs] = useState(null); // { urls: [], index: 0, lrNumber: '' }
   const [editingBookedTrip, setEditingBookedTrip] = useState(null);
 
   const handleSmartDelete = (trip) => {
@@ -546,22 +546,53 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
                   </div>
 
                   {/* Verified LR details badge */}
-                  <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-xl p-2 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 block">LR No: {trip.lr_number || 'Archived'}</span>
-                      <span className="text-[10px] text-emerald-600">
-                        {(trip.is_direct_invoice || trip.entry_type === 'direct_invoice') ? '⚡ Direct Invoice Verified' : 'Proof of Delivery Verified'}
-                      </span>
+                  <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-xl p-2 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-emerald-700 block">LR No: {trip.lr_number || 'Archived'}</span>
+                        <span className="text-[10px] text-emerald-600">
+                          {(trip.is_direct_invoice || trip.entry_type === 'direct_invoice') ? '⚡ Direct Invoice Verified' : 'Proof of Delivery Verified'}
+                        </span>
+                      </div>
+                      {/* View all LR docs button */}
+                      {(() => {
+                        const allUrls = Array.isArray(trip.lr_file_urls) && trip.lr_file_urls.length > 0
+                          ? trip.lr_file_urls
+                          : trip.lr_file_url ? [trip.lr_file_url] : [];
+                        if (allUrls.length === 0) return null;
+                        return (
+                          <button
+                            onClick={() => setPreviewLRDocs({ urls: allUrls, index: 0, lrNumber: trip.lr_number })}
+                            className="flex items-center space-x-1 px-2 py-1 bg-white text-emerald-700 hover:text-emerald-900 rounded-lg shadow-sm border border-emerald-200 font-bold"
+                            title="View LR Documents"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span className="text-[10px]">{allUrls.length > 1 ? `${allUrls.length} Docs` : 'View'}</span>
+                          </button>
+                        );
+                      })()}
                     </div>
-                    {trip.lr_file_url && (
-                      <button
-                        onClick={() => setPreviewDocUrl(trip.lr_file_url)}
-                        className="p-1.5 bg-white text-emerald-700 hover:text-emerald-900 rounded-lg shadow-sm border border-emerald-200"
-                        title="View LR Document"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    {/* LR doc thumbnails row */}
+                    {(() => {
+                      const allUrls = Array.isArray(trip.lr_file_urls) && trip.lr_file_urls.length > 1
+                        ? trip.lr_file_urls
+                        : [];
+                      if (allUrls.length === 0) return null;
+                      return (
+                        <div className="flex items-center space-x-1 overflow-x-auto">
+                          {allUrls.map((url, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setPreviewLRDocs({ urls: allUrls, index: i, lrNumber: trip.lr_number })}
+                              className="shrink-0 w-8 h-8 rounded border border-emerald-300 overflow-hidden bg-white hover:border-emerald-600 transition"
+                              title={`LR Document ${i + 1}`}
+                            >
+                              <img src={url} alt={`LR ${i+1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center justify-between pt-1 text-xs">
@@ -659,17 +690,22 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
                     </td>
                     <td className="py-3 px-4 text-center">{getStatusBadge(trip.status)}</td>
                     <td className="py-3 px-4 text-center">
-                      {trip.lr_file_url ? (
-                        <button
-                          onClick={() => setPreviewDocUrl(trip.lr_file_url)}
-                          className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        >
-                          <FileCheck className="w-3 h-3" />
-                          <span>{trip.lr_number || 'View'}</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] font-mono">{trip.lr_number || '—'}</span>
-                      )}
+                      {(() => {
+                        const allUrls = Array.isArray(trip.lr_file_urls) && trip.lr_file_urls.length > 0
+                          ? trip.lr_file_urls
+                          : trip.lr_file_url ? [trip.lr_file_url] : [];
+                        if (allUrls.length === 0) return <span className="text-slate-400 text-[11px] font-mono">{trip.lr_number || '—'}</span>;
+                        return (
+                          <button
+                            onClick={() => setPreviewLRDocs({ urls: allUrls, index: 0, lrNumber: trip.lr_number })}
+                            className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+                          >
+                            <FileCheck className="w-3 h-3" />
+                            <span>{trip.lr_number || 'View'}</span>
+                            {allUrls.length > 1 && <span className="ml-1 bg-emerald-600 text-white rounded-full text-[9px] px-1 font-black">{allUrls.length}</span>}
+                          </button>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center space-x-1.5">
@@ -763,22 +799,75 @@ export function TripStatusBoard({ onBack, trips = [], clients = [], vehicles = [
         />
       )}
 
-      {/* DOCUMENT PREVIEW MODAL */}
-      {previewDocUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 text-sm">Archived Signed LR Proof of Delivery</h3>
-              <button
-                onClick={() => setPreviewDocUrl(null)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold px-2 py-1"
-              >
-                Close ✕
-              </button>
+      {/* DOCUMENT PREVIEW MODAL - supports multiple LR docs */}
+      {previewLRDocs && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm">Signed LR — Proof of Delivery</h3>
+                {previewLRDocs.lrNumber && (
+                  <p className="text-[11px] text-slate-500 font-mono">LR: {previewLRDocs.lrNumber}</p>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                {previewLRDocs.urls.length > 1 && (
+                  <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {previewLRDocs.index + 1} / {previewLRDocs.urls.length}
+                  </span>
+                )}
+                <button
+                  onClick={() => setPreviewLRDocs(null)}
+                  className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 p-2 flex justify-center bg-slate-50">
-              <img src={previewDocUrl} alt="Signed LR Document" className="max-h-[60vh] object-contain rounded-lg shadow" />
+
+            {/* Image Viewer */}
+            <div className="max-h-[65vh] overflow-auto p-3 flex justify-center bg-slate-100">
+              <img
+                src={previewLRDocs.urls[previewLRDocs.index]}
+                alt={`Signed LR Document ${previewLRDocs.index + 1}`}
+                className="max-h-[60vh] object-contain rounded-lg shadow"
+              />
             </div>
+
+            {/* Navigation - only shown when multiple docs */}
+            {previewLRDocs.urls.length > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-white">
+                <button
+                  onClick={() => setPreviewLRDocs(prev => ({ ...prev, index: Math.max(0, prev.index - 1) }))}
+                  disabled={previewLRDocs.index === 0}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  ← Previous
+                </button>
+
+                {/* Dot indicators */}
+                <div className="flex items-center space-x-1.5">
+                  {previewLRDocs.urls.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPreviewLRDocs(prev => ({ ...prev, index: i }))}
+                      className={`w-2.5 h-2.5 rounded-full transition ${
+                        i === previewLRDocs.index ? 'bg-brand-navy' : 'bg-slate-300 hover:bg-slate-400'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setPreviewLRDocs(prev => ({ ...prev, index: Math.min(prev.urls.length - 1, prev.index + 1) }))}
+                  disabled={previewLRDocs.index === previewLRDocs.urls.length - 1}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-brand-navy hover:bg-brand-navy-dark text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

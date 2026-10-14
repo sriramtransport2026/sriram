@@ -13,7 +13,8 @@ import {
   Package, 
   CheckCircle,
   AlertCircle,
-  Trash2
+  Trash2,
+  Printer
 } from 'lucide-react';
 import { calculateProfit } from '../services/db';
 import { INDIAN_STATES } from '../utils/indianStates';
@@ -23,8 +24,23 @@ import {
   cleanPAN, isValidPAN 
 } from '../utils/validation';
 import logoImg from '../assets/logo.png';
+import { LRPrintModal } from './LRPrintModal';
 
-export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, onQuickAddVehicle, onQuickAddClient }) {
+export function NewTripEntry({ 
+  onBack, 
+  onNavigate,
+  onNavigateToStatusBoard,
+  clients = [], 
+  vehicles = [], 
+  onSaveTrip, 
+  onQuickAddVehicle, 
+  onQuickAddClient,
+  companySettings 
+}) {
+  const [savedTripRecord, setSavedTripRecord] = useState(null);
+  const [showPostSaveModal, setShowPostSaveModal] = useState(false);
+  const [showLRPrintModal, setShowLRPrintModal] = useState(false);
+
   const [formData, setFormData] = useState({
     load_id: '',
     loading_date: new Date().toISOString().split('T')[0],
@@ -323,88 +339,87 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
     }
   };
 
+  const handleResetForNewEntry = () => {
+    setFormData({
+      load_id: '',
+      loading_date: new Date().toISOString().split('T')[0],
+      client_id: '',
+      vehicle_id: '',
+      from_location: '',
+      to_location: '',
+      consignor: '',
+      consignee: '',
+      invoice_no_ref: '',
+      invoice_number: '',
+      invoice_value: '',
+      packages: '',
+      description: 'Commercial Heavy Cargo',
+      unit_type: 'MT',
+      custom_unit: '',
+      actual_weight: '',
+      charged_weight: '',
+      rate: '',
+      vehicle_rate: '',
+      has_loading_unloading: 'no',
+      loading_unloading_amount: '',
+      other_charges: [],
+      freight_amount: '',
+      vehicle_freight: '',
+      base_vehicle_freight: '',
+    });
+    setErrorMsg('');
+    setSuccessMsg('');
+    setShowPostSaveModal(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!formData.load_id.trim()) {
-      setErrorMsg('Load ID is required.');
-      return;
-    }
-    if (!formData.client_id) {
-      setErrorMsg('Please select a Client.');
-      return;
-    }
-    if (!formData.vehicle_id) {
-      setErrorMsg('Please select a Vehicle.');
-      return;
-    }
-    if (!formData.from_location.trim() || !formData.to_location.trim()) {
-      setErrorMsg('From and To destinations are required.');
-      return;
-    }
-    if (freightAmt <= 0) {
-      setErrorMsg('Freight Amount charged to client must be greater than zero.');
-      return;
-    }
-
     setIsSubmitting(true);
     try {
+      // Auto-assign clean LR / Load ID if left empty
+      const cleanLoadId = formData.load_id?.trim() || `LR-${Math.floor(100000 + Math.random() * 900000)}`;
+
       const finalPackages = formData.packages?.trim() 
         ? formData.packages.trim() 
         : formData.charged_weight
         ? `${formData.charged_weight} ${currentUnit}`
-        : '';
+        : 'Commercial Cargo';
 
-      await onSaveTrip({
+      const tripPayload = {
         ...formData,
-        lr_number: formData.load_id?.trim() || '',
+        load_id: cleanLoadId,
+        lr_number: cleanLoadId,
         packages: finalPackages,
+        from_location: formData.from_location?.trim() || 'BANGALORE',
+        to_location: formData.to_location?.trim() || 'DESTINATION',
         actual_weight: Number(formData.charged_weight) || 0,
         charged_weight: Number(formData.charged_weight) || 0,
-        freight_amount: freightAmt,
-        vehicle_freight: vehicleAmt,
-        profit: liveProfit,
+        freight_amount: freightAmt || 0,
+        vehicle_freight: vehicleAmt || 0,
+        profit: liveProfit || 0,
         status: 'booked',
-        unit_type: formData.unit_type,
-        custom_unit: formData.custom_unit,
-        invoice_no_ref: formData.invoice_number || formData.invoice_no_ref,
-        invoice_number: formData.invoice_number || formData.invoice_no_ref,
-        invoice_value: formData.invoice_value,
-        has_loading_unloading: formData.has_loading_unloading,
+        unit_type: formData.unit_type || 'MT',
+        custom_unit: formData.custom_unit || '',
+        invoice_no_ref: formData.invoice_number || formData.invoice_no_ref || '',
+        invoice_number: formData.invoice_number || formData.invoice_no_ref || '',
+        invoice_value: formData.invoice_value ? parseFloat(formData.invoice_value) : 0,
+        has_loading_unloading: formData.has_loading_unloading || 'no',
         loading_unloading_amount: formData.has_loading_unloading === 'yes' ? (parseFloat(formData.loading_unloading_amount) || 0) : 0,
         other_charges: (formData.other_charges || []).filter(item => item.amount && parseFloat(item.amount) > 0),
-      });
-      setSuccessMsg(`Load #${formData.load_id} (${finalPackages || 'Consignment'}) registered successfully with status Booked!`);
-      // Reset for next entry - LR NO empty as requested
-      setFormData(prev => ({
-        ...prev,
-        load_id: '',
-        client_id: '',
-        vehicle_id: '',
-        from_location: '',
-        to_location: '',
-        consignor: '',
-        consignee: '',
-        invoice_no_ref: '',
-        invoice_number: '',
-        invoice_value: '',
-        packages: '',
-        description: '',
-        actual_weight: '',
-        charged_weight: '',
-        rate: '',
-        vehicle_rate: '',
-        has_loading_unloading: 'no',
-        loading_unloading_amount: '',
-        other_charges: [],
-        freight_amount: '',
-        vehicle_freight: '',
-        base_vehicle_freight: '',
-      }));
+      };
+
+      const saved = await onSaveTrip(tripPayload);
+      const record = saved || tripPayload;
+      
+      setSavedTripRecord(record);
+      setSuccessMsg(`LR #${cleanLoadId} booked and saved successfully!`);
+      setShowPostSaveModal(true);
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to save trip.');
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to save LR entry.');
     } finally {
       setIsSubmitting(false);
     }
@@ -434,7 +449,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
           <span className="text-[10px] font-black uppercase tracking-widest text-brand-gold-dark bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
             LR Operations
           </span>
-          <h2 className="text-base sm:text-lg font-black text-brand-navy font-display">New Trip Entry (LR Book)</h2>
+          <h2 className="text-base sm:text-lg font-black text-brand-navy font-display">New LR Entry</h2>
         </div>
       </div>
 
@@ -469,19 +484,19 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
             <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-200/80 space-y-4">
               <div className="flex items-center space-x-2 pb-3 border-b border-slate-100 text-slate-800 font-bold text-sm">
                 <Truck className="w-4 h-4 text-brand-navy" />
-                <span>Trip & Vehicle Dispatch Details</span>
+                <span>LR & Vehicle Dispatch Details</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Load ID */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    LR NO <span className="text-rose-500">*</span>
+                    LR NO <span className="text-[10px] text-slate-400 font-normal">(Auto-generated if blank)</span>
                   </label>
                   <input
                     type="text"
                     name="load_id"
-                    required
+                    placeholder="e.g. LR-99214"
                     value={formData.load_id}
                     onChange={handleChange}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
@@ -491,12 +506,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 {/* Loading Date */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Loading Date <span className="text-rose-500">*</span>
+                    Loading Date
                   </label>
                   <input
                     type="date"
                     name="loading_date"
-                    required
                     value={formData.loading_date}
                     onChange={handleChange}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
@@ -507,7 +521,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Client (Consignee Billed) <span className="text-rose-500">*</span>
+                      Client (Consignee Billed)
                     </label>
                     <button
                       type="button"
@@ -521,7 +535,6 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   </div>
                   <select
                     name="client_id"
-                    required
                     value={formData.client_id}
                     onChange={(e) => {
                       if (e.target.value === '__add_new__') {
@@ -538,7 +551,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
                   >
-                    <option value="">-- Select Client --</option>
+                    <option value="">-- Select Client (Optional) --</option>
                     <option value="__add_new__" className="font-bold text-emerald-700 bg-emerald-50">
                       ➕ + Add New Client...
                     </option>
@@ -567,7 +580,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Vehicle Lorry <span className="text-rose-500">*</span>
+                      Vehicle Lorry
                     </label>
                     <button
                       type="button"
@@ -580,12 +593,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   </div>
                   <select
                     name="vehicle_id"
-                    required
                     value={formData.vehicle_id}
                     onChange={handleChange}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
                   >
-                    <option value="">-- Select Vehicle --</option>
+                    <option value="">-- Select Vehicle (Optional) --</option>
                     {vehicles.map(v => (
                       <option key={v.id} value={v.id}>
                         {v.vehicle_number}
@@ -606,12 +618,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    From Origin <span className="text-rose-500">*</span>
+                    From Origin
                   </label>
                   <input
                     type="text"
                     name="from_location"
-                    required
                     placeholder="e.g. BANGALORE, Jigani"
                     value={formData.from_location}
                     onChange={handleChange}
@@ -621,12 +632,11 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    To Destination <span className="text-rose-500">*</span>
+                    To Destination
                   </label>
                   <input
                     type="text"
                     name="to_location"
-                    required
                     placeholder="e.g. NELAMANGALA / SHIMOGA"
                     value={formData.to_location}
                     onChange={handleChange}
@@ -739,7 +749,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
               {/* Billing Category / Unit Selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Billing Category / Unit of Measurement <span className="text-rose-500">*</span>
+                  Billing Category / Unit of Measurement
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
@@ -775,7 +785,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 {formData.unit_type === 'custom' && (
                   <div className="mt-3 p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1 animate-fade-in">
                     <label className="block text-xs font-bold text-amber-900 uppercase tracking-wider">
-                      Enter Custom Category / Unit Name <span className="text-rose-500">*</span>
+                      Enter Custom Category / Unit Name
                     </label>
                     <input
                       type="text"
@@ -797,7 +807,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   {/* 1. Client Fixed Rate */}
                   <div className="space-y-1">
                     <label className="block text-xs sm:text-sm font-bold text-brand-navy tracking-normal whitespace-normal">
-                      Rate / fixed (₹) <span className="text-rose-500 font-bold">*</span>
+                      Rate / fixed (₹)
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
@@ -839,7 +849,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   {/* 1. Charged Weight / Quantity */}
                   <div className="space-y-1">
                     <label className="block text-xs sm:text-sm font-bold text-brand-navy tracking-normal whitespace-normal">
-                      Charged Weight ({currentUnit}) <span className="text-rose-500 font-bold">*</span>
+                      Charged Weight ({currentUnit})
                     </label>
                     <input
                       type="number"
@@ -856,7 +866,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                   {/* 2. Client Rate per Unit */}
                   <div className="space-y-1">
                     <label className="block text-xs sm:text-sm font-bold text-slate-800 tracking-normal whitespace-normal">
-                      {formData.unit_type === 'MT-fixed' ? 'Rate (₹)' : `Rate per ${currentUnit} (₹)`} <span className="text-rose-500 font-bold">*</span>
+                      {formData.unit_type === 'MT-fixed' ? 'Rate (₹)' : `Rate per ${currentUnit} (₹)`}
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold text-sm">₹</span>
@@ -918,7 +928,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     {/* Yes/No Dropdown */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        Loading & Unloading Charges? <span className="text-rose-500 font-bold">*</span>
+                        Loading & Unloading Charges?
                       </label>
                       <select
                         value={formData.has_loading_unloading}
@@ -941,7 +951,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     {formData.has_loading_unloading === 'yes' ? (
                       <div className="animate-fade-in">
                         <label className="block text-xs font-bold text-rose-900 mb-1.5">
-                          Loading & Unloading Amount (₹) <span className="text-rose-500 font-bold">*</span>
+                          Loading & Unloading Amount (₹)
                         </label>
                         <div className="relative">
                           <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-rose-500 font-bold text-sm">&minus; ₹</span>
@@ -1124,7 +1134,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Freight Amount (Client Billed) <span className="text-rose-500">*</span>
+                    Freight Amount (Client Billed)
                   </label>
                   {baseFreightNum > 0 && (
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -1139,7 +1149,6 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     type="number"
                     step="0.01"
                     name="freight_amount"
-                    required
                     placeholder="0.00"
                     value={formData.freight_amount}
                     onChange={handleChange}
@@ -1153,7 +1162,7 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Vehicle Freight (Lorry Paid) <span className="text-rose-500">*</span>
+                    Vehicle Freight (Lorry Paid)
                   </label>
                   {isAutoComputedVehicleFreight ? (
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -1176,7 +1185,6 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                     type="number"
                     step="0.01"
                     name="vehicle_freight"
-                    required
                     placeholder="0.00"
                     value={formData.vehicle_freight}
                     onChange={handleChange}
@@ -1255,10 +1263,10 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3.5 px-4 bg-brand-navy hover:bg-brand-navy-light text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition duration-200 flex items-center justify-center space-x-2 disabled:opacity-50"
+                className="w-full py-3.5 px-4 bg-brand-navy hover:bg-brand-navy-light text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer active:scale-98"
               >
-                <Save className="w-5 h-5" />
-                <span>{isSubmitting ? 'Registering Trip...' : 'Confirm & Save Trip'}</span>
+                <Save className="w-5 h-5 text-brand-gold" />
+                <span>{isSubmitting ? 'Saving LR...' : 'Confirm & Save LR'}</span>
               </button>
             </div>
           </div>
@@ -1275,7 +1283,6 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Vehicle Registration #</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. KA01AB5401 or TN70AP3051"
                   value={newVehicle.vehicle_number}
                   onChange={(e) => setNewVehicle(v => ({ ...v, vehicle_number: e.target.value.toUpperCase() }))}
@@ -1351,10 +1358,9 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
             <h3 className="text-base font-bold text-slate-900 mb-4 font-display">Add New Client (Consignee Billed)</h3>
             <form onSubmit={handleCreateClient} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name <span className="text-rose-500">*</span></label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Ashirvad Pipes Pvt Ltd"
                   value={newClient.name}
                   onChange={(e) => setNewClient(c => ({ ...c, name: e.target.value }))}
@@ -1473,6 +1479,91 @@ export function NewTripEntry({ onBack, clients = [], vehicles = [], onSaveTrip, 
             </form>
           </div>
         </div>
+      )}
+
+      {/* POST-SAVE SUCCESS MODAL WITH 3 ACTIONS: View in Status Board, Print, New Entry */}
+      {showPostSaveModal && savedTripRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-5 animate-scale-up">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle className="w-9 h-9" />
+            </div>
+            
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-black text-slate-900 font-display">
+                LR Booked & Saved!
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Consignment Note <span className="font-mono font-bold text-brand-navy">#{savedTripRecord.lr_number || savedTripRecord.load_id}</span> has been registered successfully.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 text-xs text-left space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Route:</span>
+                <span className="font-bold text-slate-800">{savedTripRecord.from_location} ➔ {savedTripRecord.to_location}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Client Freight:</span>
+                <span className="font-black text-brand-navy">₹{Number(savedTripRecord.freight_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Status:</span>
+                <span className="font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md text-[10px] border border-amber-200">
+                  Booked
+                </span>
+              </div>
+            </div>
+
+            {/* The 3 User-Requested Action Buttons */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPostSaveModal(false);
+                  if (onNavigateToStatusBoard) onNavigateToStatusBoard();
+                  else if (onNavigate) onNavigate('status-board');
+                  else onBack();
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
+              >
+                <span>View in Status Board</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLRPrintModal(true);
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-brand-gold hover:bg-brand-gold-dark text-brand-navy text-xs sm:text-sm font-black shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print LR (Consignment Note)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetForNewEntry}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New LR Entry</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRINTABLE LR MODAL */}
+      {showLRPrintModal && savedTripRecord && (
+        <LRPrintModal
+          isOpen={showLRPrintModal}
+          onClose={() => setShowLRPrintModal(false)}
+          trip={savedTripRecord}
+          client={clients.find(c => c.id === savedTripRecord.client_id)}
+          vehicle={vehicles.find(v => v.id === savedTripRecord.vehicle_id)}
+          companySettings={companySettings}
+        />
       )}
     </div>
   );

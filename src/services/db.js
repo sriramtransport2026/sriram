@@ -1764,13 +1764,22 @@ export const db = {
       try {
         const { data, error } = await supabase.from('trips').select('*, vehicles(*), clients(*)').order('loading_date', { ascending: false });
         if (!error && Array.isArray(data)) {
+          const localStored = getLocalItem(STORAGE_KEYS.TRIPS, []) || [];
           const mappedTrips = data.map(t => {
+            const localMatch = localStored.find(ls => ls.id === t.id || (ls.load_id && ls.load_id === t.load_id));
+            const allFileUrls = (Array.isArray(t.lr_file_urls) && t.lr_file_urls.length > 0)
+              ? t.lr_file_urls
+              : (Array.isArray(localMatch?.lr_file_urls) && localMatch.lr_file_urls.length > 0)
+              ? localMatch.lr_file_urls
+              : (t.lr_file_url ? [t.lr_file_url] : (localMatch?.lr_file_url ? [localMatch.lr_file_url] : []));
             const freight = parseFloat(t.freight_amount) || 0;
             const totalPaid = parseFloat(t.total_paid_amount) || 0;
             const balance = Math.max(0, freight - totalPaid);
             const pStatus = (totalPaid >= freight && freight > 0) ? 'full_payment' : (totalPaid > 0 ? (t.payment_status || 'advance') : 'pending');
             return {
               ...t,
+              lr_file_urls: allFileUrls,
+              lr_file_url: t.lr_file_url || allFileUrls[0] || null,
               company_gstin: t.company_gstin || '33GUPS2382N1ZF',
               company_name: t.company_name || (t.company_gstin === '33GWYPP4027A1ZD' ? 'Sri Ram Logistics' : 'Sri Ram Transport'),
               profit: t.profit !== undefined ? t.profit : calculateProfit(t.freight_amount, t.vehicle_freight),
@@ -1782,8 +1791,11 @@ export const db = {
               balance_amount: balance,
             };
           });
-          setLocalItem(STORAGE_KEYS.TRIPS, mappedTrips);
-          return mappedTrips;
+          // Merge with any locally stored trips (e.g. direct entry or offline) not yet synced
+          const localOnlyTrips = localStored.filter(lt => !mappedTrips.some(mt => mt.id === lt.id || (mt.load_id && mt.load_id === lt.load_id)));
+          const combinedTrips = [...mappedTrips, ...localOnlyTrips];
+          setLocalItem(STORAGE_KEYS.TRIPS, combinedTrips);
+          return combinedTrips;
         }
       } catch (e) {
         console.warn('Supabase getTrips failed, using local storage fallback:', e);
@@ -1907,31 +1919,41 @@ export const db = {
     return finalTrip;
   },
 
-  // HARD GATE: Upload signed LR and complete trip
-  async completeTripWithLR(tripId, { lr_number, lr_file_url }) {
-    if (!lr_number || !lr_file_url) {
-      throw new Error('Hard Gate: Both LR Number and signed LR document copy are strictly required to mark a trip as Completed.');
-    }
+  // Upload signed LR and complete trip (supports single & multiple LR documents)
+  async completeTripWithLR(tripId, { lr_number, lr_file_url, lr_file_urls }) {
+    const finalLrNum = lr_number?.trim() || `LR-${tripId ? String(tripId).slice(-6) : Math.floor(100000 + Math.random() * 900000)}`;
+    const finalFileUrl = lr_file_url || (Array.isArray(lr_file_urls) && lr_file_urls.length > 0 ? lr_file_urls[0] : null);
+    const finalFileUrls = Array.isArray(lr_file_urls) && lr_file_urls.length > 0 ? lr_file_urls : (finalFileUrl ? [finalFileUrl] : []);
 
     this.logUserAction({
       action: 'COMPLETE_TRIP',
       module: 'Trips',
-      description: `Completed trip with signed LR document #${lr_number}`,
-      details: { trip_id: tripId, lr_number, lr_file_url }
+      description: `Completed trip with signed LR document #${finalLrNum}`,
+      details: { trip_id: tripId, lr_number: finalLrNum, lr_file_url: finalFileUrl, lr_file_urls: finalFileUrls }
     });
 
     if (isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase.from('trips').update({
+        let { data, error } = await supabase.from('trips').update({
           status: 'completed',
-          lr_number,
-          lr_file_url
+          lr_number: finalLrNum,
+          lr_file_url: finalFileUrl,
+          lr_file_urls: finalFileUrls
         }).eq('id', tripId).select().single();
+        if (error && error.message && error.message.includes('lr_file_urls')) {
+          const res = await supabase.from('trips').update({
+            status: 'completed',
+            lr_number: finalLrNum,
+            lr_file_url: finalFileUrl
+          }).eq('id', tripId).select().single();
+          data = res.data;
+          error = res.error;
+        }
         if (!error && data) {
           const list = getLocalItem(STORAGE_KEYS.TRIPS, []);
-          const updated = list.map(t => t.id === tripId ? { ...t, ...data } : t);
+          const updated = list.map(t => t.id === tripId ? { ...t, ...data, lr_file_urls: finalFileUrls } : t);
           setLocalItem(STORAGE_KEYS.TRIPS, updated);
-          return data;
+          return { ...data, lr_file_urls: finalFileUrls };
         }
       } catch (e) {
         console.warn('Supabase completeTripWithLR error:', e);
@@ -1944,8 +1966,9 @@ export const db = {
         return {
           ...t,
           status: 'completed',
-          lr_number,
-          lr_file_url,
+          lr_number: finalLrNum,
+          lr_file_url: finalFileUrl,
+          lr_file_urls: finalFileUrls
         };
       }
       return t;
@@ -1955,10 +1978,6 @@ export const db = {
   },
 
   async updateTripStatus(tripId, newStatus) {
-    if (newStatus === 'completed') {
-      throw new Error('Cannot set status to Completed directly. You must upload a signed LR document.');
-    }
-
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('trips').update({ status: newStatus }).eq('id', tripId).select().single();
@@ -2049,13 +2068,19 @@ export const db = {
       try {
         const { data, error } = await supabase.from('invoices').select('*, clients(*)').order('created_at', { ascending: false });
         if (!error && Array.isArray(data)) {
+          const allTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
           const invoices = data.map(inv => ({
             ...inv,
             client: inv.client || inv.clients || null,
-            trips: inv.trips || []
+            trips: (inv.trips && inv.trips.length > 0)
+              ? inv.trips
+              : allTrips.filter(t => t.invoice_id === inv.id || (inv.invoice_number && (t.direct_invoice_number === inv.invoice_number || t.invoice_number === inv.invoice_number)))
           }));
-          setLocalItem(STORAGE_KEYS.INVOICES, invoices);
-          return invoices;
+          const localStored = getLocalItem(STORAGE_KEYS.INVOICES, []) || [];
+          const localOnlyInvoices = localStored.filter(li => !invoices.some(si => si.id === li.id || (si.invoice_number && si.invoice_number === li.invoice_number)));
+          const combinedInvoices = [...invoices, ...localOnlyInvoices];
+          setLocalItem(STORAGE_KEYS.INVOICES, combinedInvoices);
+          return combinedInvoices;
         }
       } catch (e) {
         console.warn('Supabase getInvoices failed:', e);
@@ -2069,14 +2094,14 @@ export const db = {
     return invoices.map(inv => ({
       ...inv,
       client: inv.client || clients.find(c => c.id === inv.client_id) || null,
-      trips: (inv.trips && inv.trips.length > 0) ? inv.trips : trips.filter(t => t.invoice_id === inv.id).map(t => ({
+      trips: (inv.trips && inv.trips.length > 0) ? inv.trips : trips.filter(t => t.invoice_id === inv.id || (inv.invoice_number && (t.direct_invoice_number === inv.invoice_number || t.invoice_number === inv.invoice_number))).map(t => ({
         ...t,
         vehicle: vehicles.find(v => v.id === t.vehicle_id) || null,
       })),
     }));
   },
 
-  async generateInvoice({ clientId, tripIds, invoiceNumber, invoiceDate, gstPercent = 5.0, notes = '', company_gstin, company_name, reverse_charge = true }) {
+  async generateInvoice({ clientId, tripIds, invoiceNumber, invoiceDate, gstPercent = 5.0, notes = '', po_number = '', poNumber = '', company_gstin, company_name, reverse_charge = true }) {
     if (!clientId || !tripIds || tripIds.length === 0) {
       throw new Error('Please select a client and at least one completed trip.');
     }
@@ -2103,6 +2128,7 @@ export const db = {
       company_gstin: effectiveGstin,
       company_name: effectiveName,
       invoice_date: invoiceDate || new Date().toISOString().split('T')[0],
+      po_number: (po_number || poNumber || '').trim(),
       sub_total: subTotal,
       gst_percent: gstPercent,
       gst_amount: gstAmount,
@@ -2168,8 +2194,8 @@ export const db = {
           error = retry.error;
         }
 
-        if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column'))) {
-          const { company_gstin: _cg, company_name: _cn, ...fallbackPayload } = supabaseInvoicePayload;
+        if (error && error.message && (error.message.includes('company_gstin') || error.message.includes('column') || error.message.includes('po_number'))) {
+          const { company_gstin: _cg, company_name: _cn, po_number: _po, ...fallbackPayload } = supabaseInvoicePayload;
           const retry = await supabase.from('invoices').insert([fallbackPayload]).select().single();
           if (!retry.error && retry.data) {
             createdInv = retry.data;
@@ -2203,7 +2229,8 @@ export const db = {
 
     // Update Local Storage
     const invoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
-    setLocalItem(STORAGE_KEYS.INVOICES, [newInvoice, ...invoices]);
+    const invoiceWithTrips = { ...newInvoice, trips: selectedTrips };
+    setLocalItem(STORAGE_KEYS.INVOICES, [invoiceWithTrips, ...invoices]);
 
     const trips = getLocalItem(STORAGE_KEYS.TRIPS, []);
     const updatedTrips = trips.map(t => {
@@ -2234,7 +2261,7 @@ export const db = {
       company_name: newInvoice.company_name
     });
 
-    return newInvoice;
+    return invoiceWithTrips;
   },
 
   async deleteInvoice(id) {
@@ -2271,6 +2298,7 @@ export const db = {
     invoice_date,
     gst_percent = 5.0,
     notes = '',
+    po_number = '',
     company_gstin,
     company_name,
     reverse_charge = true,
@@ -2301,6 +2329,7 @@ export const db = {
       company_gstin: effectiveGstin,
       company_name: effectiveName,
       invoice_date: invDate,
+      po_number: (po_number || '').trim(),
       sub_total: subTotal,
       gst_percent: parseFloat(gst_percent) || 5.0,
       gst_amount: gstAmount,
@@ -2417,9 +2446,18 @@ export const db = {
           invErr = retryRes.error;
         }
 
+        // Fallback retry for invoices without po_number or is_direct if columns don't exist yet
+        if (invErr && invErr.message && (invErr.message.includes('column') || invErr.message.includes('po_number') || invErr.message.includes('is_direct'))) {
+          const { po_number: _po, is_direct: _id, ...safeInvPayload } = supabaseInvPayload;
+          const retryRes2 = await supabase.from('invoices').insert([safeInvPayload]).select().single();
+          if (!retryRes2.error && retryRes2.data) {
+            supInv = retryRes2.data;
+            invErr = null;
+          }
+        }
+
         if (invErr) {
-          console.error('Supabase saveDirectInvoiceEntry invoice error:', invErr);
-          throw new Error('Failed to save direct invoice: ' + (invErr.message || JSON.stringify(invErr)));
+          console.warn('Supabase saveDirectInvoiceEntry invoice warning (data will still be safely preserved locally):', invErr);
         }
 
         const effectiveDbInvoiceId = supInv?.id || generatedInvoiceId;
@@ -2427,30 +2465,43 @@ export const db = {
 
         for (const tr of createdTrips) {
           tr.invoice_id = effectiveDbInvoiceId;
-          const { profit: _p, vehicle: _vh, vehicle_number: _vn, client: _cl, vehicle_rate: _vr, lr_status: _ls, base_vehicle_freight: _bvf, ...supTripPayload } = tr;
+          const { profit: _p, vehicle: _vh, vehicle_number: _vn, client: _cl, vehicle_rate: _vr, lr_status: _ls, base_vehicle_freight: _bvf, lr_file_urls: _lrfu, custom_fields: _cf, ...supTripPayload } = tr;
+          if (!supTripPayload.client_id) delete supTripPayload.client_id;
+          if (!supTripPayload.vehicle_id) delete supTripPayload.vehicle_id;
+
           let { data: supTrip, error: tripErr } = await supabase.from('trips').insert([supTripPayload]).select().single();
-          if (tripErr && tripErr.message && (tripErr.message.includes('column') || tripErr.message.includes('invoice_value') || tripErr.message.includes('invoice_number') || tripErr.message.includes('base_vehicle_freight'))) {
-            const { invoice_value: _iv, invoice_number: _in, base_vehicle_freight: _bvf2, vehicle_number: _vn2, ...fallbackTripPayload } = supTripPayload;
+          if (tripErr && tripErr.message && (tripErr.message.includes('column') || tripErr.message.includes('invoice_value') || tripErr.message.includes('invoice_number') || tripErr.message.includes('base_vehicle_freight') || tripErr.message.includes('entry_type') || tripErr.message.includes('is_direct_invoice') || tripErr.message.includes('direct_invoice_number'))) {
+            const { 
+              invoice_value: _iv, 
+              invoice_number: _in, 
+              base_vehicle_freight: _bvf2, 
+              vehicle_number: _vn2, 
+              entry_type: _et,
+              is_direct_invoice: _idi,
+              direct_invoice_number: _din,
+              ...fallbackTripPayload 
+            } = supTripPayload;
             fallbackTripPayload.invoice_no_ref = tr.invoice_number || tr.invoice_no_ref || tr.ref_invoice_number || '';
             const retry = await supabase.from('trips').insert([fallbackTripPayload]).select().single();
             supTrip = retry.data;
             tripErr = retry.error;
           }
           if (tripErr) {
-            console.error('Supabase saveDirectInvoiceEntry trip error:', tripErr);
+            console.warn('Supabase saveDirectInvoiceEntry trip warning:', tripErr);
           } else if (supTrip) {
             tr.id = supTrip.id;
           }
         }
       } catch (err) {
-        if (err.message && err.message.startsWith('Failed to save direct invoice')) throw err;
         console.warn('Supabase saveDirectInvoiceEntry network error, continuing with local storage:', err.message);
       }
     }
 
     // 5. Local Storage updates
     const existingInvoices = getLocalItem(STORAGE_KEYS.INVOICES, []);
-    setLocalItem(STORAGE_KEYS.INVOICES, [newInvoice, ...existingInvoices]);
+    // Embed trips into the invoice for reliable re-opening from history
+    const invoiceWithTrips = { ...newInvoice, trips: createdTrips };
+    setLocalItem(STORAGE_KEYS.INVOICES, [invoiceWithTrips, ...existingInvoices]);
 
     const existingTrips = getLocalItem(STORAGE_KEYS.TRIPS, []);
     setLocalItem(STORAGE_KEYS.TRIPS, [...createdTrips, ...existingTrips]);
@@ -2470,7 +2521,7 @@ export const db = {
     });
 
     return {
-      invoice: newInvoice,
+      invoice: invoiceWithTrips,
       trips: createdTrips
     };
   },

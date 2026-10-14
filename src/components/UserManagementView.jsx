@@ -36,7 +36,7 @@ import logoImg from '../assets/logo.png';
 import { db } from '../services/db';
 
 const ALL_SYSTEM_MODULES = [
-  { id: 'new-trip', label: 'New Trip Entry', icon: PlusCircle, description: 'Book loads, calculate rates & profits' },
+  { id: 'new-trip', label: 'New LR Entry', icon: PlusCircle, description: 'Book loads, calculate rates & profits' },
   { id: 'direct-invoice', label: 'Direct Invoice Entry', icon: Zap, description: 'Single-entry multi-trip direct invoice generation to payments' },
   { id: 'status-board', label: 'Trip Status Board', icon: Navigation, description: 'Track loads & upload hard-gated POD' },
   { id: 'invoices', label: 'Generate Invoice', icon: FileCheck, description: 'Consolidated GST reverse-charge billing' },

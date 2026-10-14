@@ -43,25 +43,33 @@
   background: #94a3b8;
 }
 
-/* Print specific styles for Tax Invoices */
+/* Print specific styles for Tax Invoices and Lorry Receipts */
 @media print {
   body * {
     visibility: hidden;
   }
-  #printable-invoice, #printable-invoice * {
+  #printable-invoice, #printable-invoice *,
+  #printable-lr, #printable-lr * {
     visibility: visible;
   }
-  #printable-invoice {
+  #printable-invoice, #printable-lr {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
+    background: white !important;
   }
   .no-print {
     display: none !important;
   }
 }
+
+@page {
+  margin: 8mm;
+}
+

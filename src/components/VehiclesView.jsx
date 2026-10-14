@@ -71,18 +71,13 @@ export function VehiclesView({ onBack, vehicles = [], trips = [], onSaveVehicle,
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.vehicle_number.trim()) return;
-
-    if (formData.owner_phone && !isValidPhone(formData.owner_phone)) {
-      alert("Owner Phone must be strictly 10 digits. (Currently: " + cleanPhone(formData.owner_phone).length + " digits)");
-      return;
-    }
+    const finalVehNo = formData.vehicle_number.trim().toUpperCase() || ('LORRY-' + Date.now().toString().slice(-4));
 
     await onSaveVehicle({
       id: editingVehicle?.id,
       ...formData,
       owner_phone: cleanPhone(formData.owner_phone),
-      vehicle_number: formData.vehicle_number.trim().toUpperCase(),
+      vehicle_number: finalVehNo,
     });
     setModalOpen(false);
   };
@@ -238,10 +233,9 @@ export function VehiclesView({ onBack, vehicles = [], trips = [], onSaveVehicle,
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Vehicle Registration # <span className="text-rose-500">*</span></label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Vehicle Registration #</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. KA01AB5401 or TN70AP3051"
                   value={formData.vehicle_number}
                   onChange={(e) => setFormData(f => ({ ...f, vehicle_number: e.target.value.toUpperCase() }))}

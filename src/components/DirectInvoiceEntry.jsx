@@ -48,6 +48,7 @@ export function DirectInvoiceEntry({
   const [selectedClientId, setSelectedClientId] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [poNumber, setPoNumber] = useState('');
   const [defaultFromLocation, setDefaultFromLocation] = useState('');
   const [defaultToLocation, setDefaultToLocation] = useState('');
   const [consignor, setConsignor] = useState('');
@@ -56,6 +57,23 @@ export function DirectInvoiceEntry({
   const [reverseCharge, setReverseCharge] = useState(true);
   const [notes, setNotes] = useState('Direct Multi-Trip Consignment Invoice');
 
+  // Available detail fields for Section 2 dropdown
+  const AVAILABLE_ROW_FIELDS = [
+    { id: 'vehicle', label: 'Vehicle / Lorry' },
+    { id: 'from', label: 'From (Origin)' },
+    { id: 'to', label: 'To (Destination)' },
+    { id: 'lr_number', label: 'LR # / Ref' },
+    { id: 'loading_date', label: 'Loading Date' },
+    { id: 'packages', label: 'Cargo / Packages' },
+    { id: 'invoice_number', label: 'Invoice No' },
+    { id: 'invoice_value', label: 'Invoice Value (₹)' },
+    { id: 'weight_rate', label: 'Weight, Unit & Rate' },
+    { id: 'freight_amount', label: 'Client Freight (₹)' },
+    { id: 'vehicle_freight', label: 'Vehicle Freight (₹)' },
+  ];
+
+  const DEFAULT_INITIAL_FIELDS = ['vehicle', 'from', 'to', 'weight_rate', 'vehicle_freight'];
+
   // Quick Add Vehicle / Client Modals
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [newVehicle, setNewVehicle] = useState({ vehicle_number: '', vehicle_type: '19FT-SA-IIMT', owner_name: '', owner_phone: '' });
@@ -63,6 +81,10 @@ export function DirectInvoiceEntry({
 
   const [showClientModal, setShowClientModal] = useState(false);
   const [newClient, setNewClient] = useState({ name: '', gstin: '', pan: '', state: 'Tamil Nadu', address: '', phone: '' });
+
+  // Custom Field inline input states
+  const [showCustomInput, setShowCustomInput] = useState({});
+  const [customFieldNames, setCustomFieldNames] = useState({});
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -118,6 +140,8 @@ export function DirectInvoiceEntry({
     rate: '',
     freight_amount: '',
     vehicle_freight: '',
+    selected_fields: [...DEFAULT_INITIAL_FIELDS],
+    custom_fields: []
   });
 
   const [tripRows, setTripRows] = useState([createEmptyTrip(0)]);
@@ -131,6 +155,101 @@ export function DirectInvoiceEntry({
   const handleRemoveTripRow = (index) => {
     if (tripRows.length <= 1) return;
     setTripRows(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Field selection and custom field handlers
+  const handleAddField = (tripIndex, fieldId) => {
+    if (!fieldId) return;
+    if (fieldId === '__CUSTOM__') {
+      setShowCustomInput(prev => ({ ...prev, [tripIndex]: true }));
+      return;
+    }
+    setTripRows(prev => {
+      const updated = [...prev];
+      const currentFields = updated[tripIndex].selected_fields || [];
+      if (!currentFields.includes(fieldId)) {
+        updated[tripIndex] = {
+          ...updated[tripIndex],
+          selected_fields: [...currentFields, fieldId]
+        };
+      }
+      return updated;
+    });
+  };
+
+  const handleToggleField = (tripIndex, fieldId) => {
+    setTripRows(prev => {
+      const updated = [...prev];
+      const currentFields = updated[tripIndex].selected_fields || [...DEFAULT_INITIAL_FIELDS];
+      if (currentFields.includes(fieldId)) {
+        updated[tripIndex] = {
+          ...updated[tripIndex],
+          selected_fields: currentFields.filter(f => f !== fieldId)
+        };
+      } else {
+        updated[tripIndex] = {
+          ...updated[tripIndex],
+          selected_fields: [...currentFields, fieldId]
+        };
+      }
+      return updated;
+    });
+  };
+
+  const handleRemoveField = (tripIndex, fieldId) => {
+    setTripRows(prev => {
+      const updated = [...prev];
+      const currentFields = updated[tripIndex].selected_fields || [...DEFAULT_INITIAL_FIELDS];
+      updated[tripIndex] = {
+        ...updated[tripIndex],
+        selected_fields: currentFields.filter(f => f !== fieldId)
+      };
+      return updated;
+    });
+  };
+
+  const handleAddCustomField = (tripIndex, label) => {
+    if (!label || !label.trim()) return;
+    setTripRows(prev => {
+      const updated = [...prev];
+      const customList = updated[tripIndex].custom_fields || [];
+      const newField = {
+        id: 'cf-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        label: label.trim(),
+        value: ''
+      };
+      updated[tripIndex] = {
+        ...updated[tripIndex],
+        custom_fields: [...customList, newField]
+      };
+      return updated;
+    });
+    setCustomFieldNames(prev => ({ ...prev, [tripIndex]: '' }));
+    setShowCustomInput(prev => ({ ...prev, [tripIndex]: false }));
+  };
+
+  const handleUpdateCustomField = (tripIndex, customId, value) => {
+    setTripRows(prev => {
+      const updated = [...prev];
+      const customList = updated[tripIndex].custom_fields || [];
+      updated[tripIndex] = {
+        ...updated[tripIndex],
+        custom_fields: customList.map(cf => cf.id === customId ? { ...cf, value } : cf)
+      };
+      return updated;
+    });
+  };
+
+  const handleRemoveCustomField = (tripIndex, customId) => {
+    setTripRows(prev => {
+      const updated = [...prev];
+      const customList = updated[tripIndex].custom_fields || [];
+      updated[tripIndex] = {
+        ...updated[tripIndex],
+        custom_fields: customList.filter(cf => cf.id !== customId)
+      };
+      return updated;
+    });
   };
 
   // Update a field in a specific trip row
@@ -280,17 +399,6 @@ export function DirectInvoiceEntry({
       return;
     }
 
-    // Validate all trip rows: Only pricing details are mandatory!
-    for (let i = 0; i < tripRows.length; i++) {
-      const t = tripRows[i];
-      const freight = parseFloat(t.freight_amount) || 0;
-      const rate = parseFloat(t.rate) || 0;
-      if (freight <= 0 && rate <= 0) {
-        setErrorMessage(`Trip #${i + 1}: Pricing details (Freight Amount or Rate) are mandatory.`);
-        return;
-      }
-    }
-
     setIsSubmitting(true);
     try {
       const payloadTrips = tripRows.map(t => {
@@ -300,7 +408,7 @@ export function DirectInvoiceEntry({
           ? t.packages.trim() 
           : t.charged_weight 
           ? `${t.charged_weight} ${t.unit_type === 'custom' ? (t.custom_unit || 'Units') : t.unit_type}`
-          : '';
+          : 'Commercial Cargo';
 
         const vehObj = vehicles.find(v => v.id === t.vehicle_id) || null;
         const vehNum = vehObj?.vehicle_number || '';
@@ -312,8 +420,8 @@ export function DirectInvoiceEntry({
           vehicle_id: t.vehicle_id,
           vehicle_number: vehNum,
           vehicle: vehObj,
-          from_location: t.from_location || defaultFromLocation,
-          to_location: t.to_location,
+          from_location: t.from_location || defaultFromLocation || 'BANGALORE',
+          to_location: t.to_location || defaultToLocation || 'DESTINATION',
           consignor,
           consignee: consignee || selectedClient?.name || 'Consignee',
           packages: finalPackages,
@@ -328,12 +436,14 @@ export function DirectInvoiceEntry({
           rate: parseFloat(t.rate) || 0,
           freight_amount: freightAmt,
           vehicle_freight: vehicleAmt,
+          custom_fields: t.custom_fields || [],
         };
       });
 
       const result = await onDirectInvoiceGenerated({
         client_id: selectedClientId,
         invoice_number: invoiceNumber.trim(),
+        po_number: poNumber.trim(),
         invoice_date: invoiceDate,
         gst_percent: parseFloat(gstPercent) || 5.0,
         notes,
@@ -449,7 +559,7 @@ export function DirectInvoiceEntry({
             <div className="space-y-1.5 md:col-span-2">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Client (Consignee Billed) <span className="text-rose-500">*</span>
+                  Client (Consignee Billed)
                 </label>
                 <button
                   type="button"
@@ -472,7 +582,7 @@ export function DirectInvoiceEntry({
                 }}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-bold text-slate-900 focus:bg-white focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10 transition"
               >
-                <option value="">-- Select Client --</option>
+                <option value="">-- Select Client (Optional) --</option>
                 <option value="__add_new__" className="font-bold text-emerald-700 bg-emerald-50">
                   ➕ + Add New Client...
                 </option>
@@ -507,7 +617,7 @@ export function DirectInvoiceEntry({
 
             {/* Invoice Number */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">Invoice # *</label>
+              <label className="block text-xs font-bold text-slate-700">Invoice #</label>
               <input
                 type="text"
                 value={invoiceNumber}
@@ -538,7 +648,7 @@ export function DirectInvoiceEntry({
 
             {/* Invoice Date */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">Invoice Date *</label>
+              <label className="block text-xs font-bold text-slate-700">Invoice Date</label>
               <input
                 type="date"
                 value={invoiceDate}
@@ -547,6 +657,18 @@ export function DirectInvoiceEntry({
                   setTripRows(prev => prev.map(r => ({ ...r, loading_date: e.target.value })));
                 }}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:bg-white focus:border-brand-navy transition"
+              />
+            </div>
+
+            {/* PO No. */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">PO No. / Work Order</label>
+              <input
+                type="text"
+                value={poNumber}
+                onChange={(e) => setPoNumber(e.target.value)}
+                placeholder="e.g. PO-88910"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:bg-white focus:border-brand-navy"
               />
             </div>
 
@@ -677,209 +799,453 @@ export function DirectInvoiceEntry({
                     </div>
                   </div>
 
-                  {/* Trip Fields Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4">
-                    {/* Vehicle */}
-                    <div className="sm:col-span-2 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-[11px] font-bold text-slate-700">
-                          Vehicle / Lorry <span className="text-xs font-normal text-slate-400">(Optional)</span>
+                  {/* Field Selector Dropdown & Custom Field Adder Bar */}
+                  <div className="bg-slate-50/90 rounded-2xl p-3 border border-slate-200/80 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                          <span>Detail Fields:</span>
                         </label>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            handleAddField(index, e.target.value);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-sm focus:border-brand-navy cursor-pointer"
+                        >
+                          <option value="">+ Add Detail Field to Trip...</option>
+                          {AVAILABLE_ROW_FIELDS.map(f => {
+                            const isAdded = row.selected_fields?.includes(f.id);
+                            return (
+                              <option key={f.id} value={f.id} disabled={isAdded}>
+                                {isAdded ? `✓ ${f.label} (Added)` : f.label}
+                              </option>
+                            );
+                          })}
+                          <option value="__CUSTOM__" className="font-bold text-brand-navy">
+                            + Add Custom Field...
+                          </option>
+                        </select>
+
                         <button
                           type="button"
-                          onClick={() => {
-                            setActiveVehicleTripIndex(index);
-                            setShowVehicleModal(true);
-                          }}
-                          className="text-[10px] font-bold text-brand-navy hover:underline"
+                          onClick={() => setShowCustomInput(prev => ({ ...prev, [index]: true }))}
+                          className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
                         >
-                          + Quick Add
+                          <Plus className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Custom Field</span>
                         </button>
                       </div>
-                      <select
-                        value={row.vehicle_id}
-                        onChange={(e) => handleUpdateTripRow(index, 'vehicle_id', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:bg-white focus:border-brand-navy"
-                      >
-                        <option value="">-- Select Lorry (Optional) --</option>
-                        {vehicles.map(v => (
-                          <option key={v.id} value={v.id}>
-                            {v.vehicle_number}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
 
-                    {/* From Route */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">From *</label>
-                      <input
-                        type="text"
-                        value={row.from_location}
-                        onChange={(e) => handleUpdateTripRow(index, 'from_location', e.target.value)}
-                        placeholder="Bangalore, Jigani"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* To Route */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">To Destination *</label>
-                      <input
-                        type="text"
-                        value={row.to_location}
-                        onChange={(e) => handleUpdateTripRow(index, 'to_location', e.target.value)}
-                        placeholder="Hosur / Chennai"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* LR Number */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">LR # / Ref</label>
-                      <input
-                        type="text"
-                        value={row.lr_number}
-                        onChange={(e) => handleUpdateTripRow(index, 'lr_number', e.target.value)}
-                        placeholder={`LR-${row.load_id}`}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* Loading Date */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Loading Date</label>
-                      <input
-                        type="date"
-                        value={row.loading_date}
-                        onChange={(e) => handleUpdateTripRow(index, 'loading_date', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* Packages / Description */}
-                    <div className="sm:col-span-2 space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Cargo / Packages</label>
-                      <input
-                        type="text"
-                        value={row.packages}
-                        onChange={(e) => handleUpdateTripRow(index, 'packages', e.target.value)}
-                        placeholder="e.g. 520 Bundles CPVC Pipes"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* Ref Invoice No */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Invoice No</label>
-                      <input
-                        type="text"
-                        value={row.invoice_number || row.ref_invoice_number || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          handleUpdateTripRow(index, 'invoice_number', val);
-                          handleUpdateTripRow(index, 'ref_invoice_number', val);
-                        }}
-                        placeholder="e.g. INV-8821"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* Invoice Value (₹) */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Invoice Value (₹)</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.invoice_value || ''}
-                        onChange={(e) => handleUpdateTripRow(index, 'invoice_value', e.target.value)}
-                        placeholder="e.g. 150000"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
-
-                    {/* Weight & Unit */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">
-                        {row.unit_type === 'fixed' ? 'Unit Type' : 'Charged Wt / Qty'}
-                      </label>
-                      <div className="flex">
-                        {row.unit_type !== 'fixed' && (
-                          <input
-                            type="number"
-                            step="any"
-                            value={row.charged_weight}
-                            onChange={(e) => handleUpdateTripRow(index, 'charged_weight', e.target.value)}
-                            placeholder="10.5"
-                            className="w-full px-3 py-2 rounded-l-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:border-brand-navy"
-                          />
-                        )}
-                        <select
-                          value={row.unit_type}
-                          onChange={(e) => handleUpdateTripRow(index, 'unit_type', e.target.value)}
-                          className={`px-3 py-2 bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer ${
-                            row.unit_type === 'fixed' ? 'w-full rounded-xl' : 'rounded-r-xl border-y border-r'
-                          }`}
-                        >
-                          <option value="MT">MT</option>
-                          <option value="MT-fixed">MT-fixed</option>
-                          <option value="fixed">Fixed</option>
-                          <option value="custom">Custom</option>
-                        </select>
+                      <div className="text-[11px] text-slate-400">
+                        Fields appear in selected order
                       </div>
-                      {row.unit_type === 'custom' && (
+                    </div>
+
+                    {/* Inline Custom Field Creator */}
+                    {showCustomInput[index] && (
+                      <div className="flex items-center space-x-2 bg-amber-50/80 p-2 rounded-xl border border-amber-200 animate-fade-in">
                         <input
                           type="text"
-                          value={row.custom_unit || ''}
-                          onChange={(e) => handleUpdateTripRow(index, 'custom_unit', e.target.value)}
-                          placeholder="Unit (e.g. Bundles)"
-                          className="w-full mt-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[10px] font-bold text-slate-800"
+                          autoFocus
+                          placeholder="Custom detail name (e.g. Driver Name, E-Way Bill #, Remarks)"
+                          value={customFieldNames[index] || ''}
+                          onChange={(e) => setCustomFieldNames(prev => ({ ...prev, [index]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomField(index, customFieldNames[index]);
+                            }
+                          }}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-xs font-medium text-slate-800"
                         />
-                      )}
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddCustomField(index, customFieldNames[index])}
+                          className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomInput(prev => ({ ...prev, [index]: false }))}
+                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-                    {/* Rate per Unit */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">
-                        {row.unit_type === 'MT-fixed' ? 'Rate (₹)' : (row.unit_type === 'fixed' ? 'Rate / fixed (₹)' : 'Rate / Unit (₹)')}
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.rate}
-                        onChange={(e) => handleUpdateTripRow(index, 'rate', e.target.value)}
-                        placeholder="1200"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
+                  {/* Render Selected Fields In User's Chosen Order */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4">
+                    {row.selected_fields?.map((fieldId) => {
+                      if (fieldId === 'vehicle') {
+                        return (
+                          <div key="vehicle" className="sm:col-span-2 space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <label className="block text-[11px] font-bold text-slate-700">Vehicle / Lorry</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveVehicleTripIndex(index);
+                                    setShowVehicleModal(true);
+                                  }}
+                                  className="text-[10px] font-bold text-brand-navy hover:underline"
+                                >
+                                  + Quick Add
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'vehicle')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Vehicle field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <select
+                              value={row.vehicle_id}
+                              onChange={(e) => handleUpdateTripRow(index, 'vehicle_id', e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-brand-navy"
+                            >
+                              <option value="">-- Select Lorry (Optional) --</option>
+                              {vehicles.map(v => (
+                                <option key={v.id} value={v.id}>
+                                  {v.vehicle_number}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      }
 
-                    {/* Client Freight Amount */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">Client Freight (₹) *</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.freight_amount}
-                        onChange={(e) => handleUpdateTripRow(index, 'freight_amount', e.target.value)}
-                        placeholder="15000"
-                        className="w-full px-3 py-2 rounded-xl bg-emerald-50/60 border border-emerald-300 text-xs font-bold text-emerald-900 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
+                      if (fieldId === 'from') {
+                        return (
+                          <div key="from" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">From Origin</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'from')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove From field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.from_location}
+                              onChange={(e) => handleUpdateTripRow(index, 'from_location', e.target.value)}
+                              placeholder="Bangalore, Jigani"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
 
-                    {/* Vehicle Freight / Lorry Hire */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700">
-                        {row.unit_type === 'MT-fixed' ? 'Lorry Rate (₹)' : (row.unit_type === 'fixed' ? 'Lorry Rate / fixed (₹)' : 'Lorry Hire (₹)')}
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.vehicle_freight}
-                        onChange={(e) => handleUpdateTripRow(index, 'vehicle_freight', e.target.value)}
-                        placeholder="12000"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-navy"
-                      />
-                    </div>
+                      if (fieldId === 'to') {
+                        return (
+                          <div key="to" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">To Destination</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'to')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove To field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.to_location}
+                              onChange={(e) => handleUpdateTripRow(index, 'to_location', e.target.value)}
+                              placeholder="Hosur / Chennai"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'lr_number') {
+                        return (
+                          <div key="lr_number" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">LR # / Ref</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'lr_number')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove LR # field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.lr_number}
+                              onChange={(e) => handleUpdateTripRow(index, 'lr_number', e.target.value)}
+                              placeholder={`LR-${row.load_id}`}
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-mono text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'loading_date') {
+                        return (
+                          <div key="loading_date" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">Loading Date</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'loading_date')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Loading Date field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="date"
+                              value={row.loading_date}
+                              onChange={(e) => handleUpdateTripRow(index, 'loading_date', e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'packages') {
+                        return (
+                          <div key="packages" className="sm:col-span-2 space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">Cargo / Packages</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'packages')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Cargo field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.packages}
+                              onChange={(e) => handleUpdateTripRow(index, 'packages', e.target.value)}
+                              placeholder="e.g. 520 Bundles CPVC Pipes"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'invoice_number') {
+                        return (
+                          <div key="invoice_number" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">Invoice No</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'invoice_number')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Invoice No field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.invoice_number || row.ref_invoice_number || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                handleUpdateTripRow(index, 'invoice_number', val);
+                                handleUpdateTripRow(index, 'ref_invoice_number', val);
+                              }}
+                              placeholder="e.g. INV-8821"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'invoice_value') {
+                        return (
+                          <div key="invoice_value" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">Invoice Value (₹)</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'invoice_value')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Invoice Value field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              value={row.invoice_value || ''}
+                              onChange={(e) => handleUpdateTripRow(index, 'invoice_value', e.target.value)}
+                              placeholder="e.g. 150000"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'weight_rate') {
+                        return (
+                          <div key="weight_rate" className="sm:col-span-2 space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">
+                                {row.unit_type === 'fixed' ? 'Pricing & Unit' : 'Weight, Unit & Rate'}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'weight_rate')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Weight & Rate field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="flex">
+                              {row.unit_type !== 'fixed' && (
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={row.charged_weight}
+                                  onChange={(e) => handleUpdateTripRow(index, 'charged_weight', e.target.value)}
+                                  placeholder="10.5"
+                                  className="w-full px-3 py-2 rounded-l-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:border-brand-navy"
+                                />
+                              )}
+                              <select
+                                value={row.unit_type}
+                                onChange={(e) => handleUpdateTripRow(index, 'unit_type', e.target.value)}
+                                className={`px-3 py-2 bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer ${
+                                  row.unit_type === 'fixed' ? 'w-full rounded-xl' : 'rounded-r-xl border-y border-r'
+                                }`}
+                              >
+                                <option value="MT">MT</option>
+                                <option value="MT-fixed">MT-fixed</option>
+                                <option value="fixed">Fixed</option>
+                                <option value="custom">Custom</option>
+                              </select>
+                            </div>
+                            {row.unit_type === 'custom' && (
+                              <input
+                                type="text"
+                                value={row.custom_unit || ''}
+                                onChange={(e) => handleUpdateTripRow(index, 'custom_unit', e.target.value)}
+                                placeholder="Unit (e.g. Bundles)"
+                                className="w-full mt-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[10px] font-bold text-slate-800"
+                              />
+                            )}
+                            <div className="mt-1">
+                              <input
+                                type="number"
+                                step="any"
+                                value={row.rate}
+                                onChange={(e) => handleUpdateTripRow(index, 'rate', e.target.value)}
+                                placeholder={row.unit_type === 'MT-fixed' ? 'Rate (₹)' : (row.unit_type === 'fixed' ? 'Rate / fixed (₹)' : 'Rate / Unit (₹)')}
+                                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-brand-navy"
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'freight_amount') {
+                        return (
+                          <div key="freight_amount" className="space-y-1 bg-emerald-50/60 p-3 rounded-2xl border border-emerald-300 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-emerald-950">Client Freight (₹)</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'freight_amount')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Client Freight field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              value={row.freight_amount}
+                              onChange={(e) => handleUpdateTripRow(index, 'freight_amount', e.target.value)}
+                              placeholder="15000"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-emerald-300 text-xs font-bold text-emerald-900 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (fieldId === 'vehicle_freight') {
+                        return (
+                          <div key="vehicle_freight" className="space-y-1 bg-slate-50/60 p-3 rounded-2xl border border-slate-200/80 relative">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-slate-700">
+                                {row.unit_type === 'MT-fixed' ? 'Lorry Rate (₹)' : (row.unit_type === 'fixed' ? 'Lorry Rate / fixed (₹)' : 'Lorry Hire (₹)')}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveField(index, 'vehicle_freight')}
+                                className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                                title="Remove Vehicle Freight field"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              value={row.vehicle_freight}
+                              onChange={(e) => handleUpdateTripRow(index, 'vehicle_freight', e.target.value)}
+                              placeholder="12000"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:border-brand-navy"
+                            />
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
+
+                    {/* Render Custom Fields */}
+                    {row.custom_fields && row.custom_fields.map((cf) => (
+                      <div key={cf.id} className="space-y-1 bg-amber-50/70 p-3 rounded-2xl border border-amber-300 relative">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] font-bold text-amber-950 truncate pr-2">
+                            {cf.label}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomField(index, cf.id)}
+                            className="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-rose-50"
+                            title="Remove custom field"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={cf.value}
+                          onChange={(e) => handleUpdateCustomField(index, cf.id, e.target.value)}
+                          placeholder={`Enter ${cf.label}...`}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-amber-300 text-xs font-medium text-slate-800 focus:border-brand-navy"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -1087,10 +1453,9 @@ export function DirectInvoiceEntry({
             </div>
             <form onSubmit={handleCreateVehicle} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Vehicle Registration # *</label>
+                <label className="block font-bold text-slate-700 mb-1">Vehicle Registration #</label>
                 <input
                   type="text"
-                  required
                   value={newVehicle.vehicle_number}
                   onChange={(e) => setNewVehicle(prev => ({ ...prev, vehicle_number: e.target.value.toUpperCase() }))}
                   placeholder="e.g. KA01AB5401 or TN70AP3051"
@@ -1174,10 +1539,9 @@ export function DirectInvoiceEntry({
             </div>
             <form onSubmit={handleCreateClient} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name <span className="text-rose-500">*</span></label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name</label>
                 <input
                   type="text"
-                  required
                   value={newClient.name}
                   onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. Ashirvad Pipes Pvt Ltd"

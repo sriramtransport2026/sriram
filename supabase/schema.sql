@@ -38,6 +38,7 @@ ALTER TABLE vehicles
 ALTER TABLE invoices 
   ADD COLUMN IF NOT EXISTS company_gstin text DEFAULT '33GUPS2382N1ZF',
   ADD COLUMN IF NOT EXISTS company_name text DEFAULT 'Sri Ram Transport',
+  ADD COLUMN IF NOT EXISTS po_number text,
   ADD COLUMN IF NOT EXISTS is_direct boolean DEFAULT false;
 
 ALTER TABLE app_users 
@@ -447,14 +448,32 @@ ADD COLUMN IF NOT EXISTS invoice_id uuid REFERENCES invoices(id) ON DELETE SET N
 ADD COLUMN IF NOT EXISTS entry_type text DEFAULT 'standard',
 ADD COLUMN IF NOT EXISTS is_direct_invoice boolean DEFAULT false,
 ADD COLUMN IF NOT EXISTS direct_invoice_number text,
+ADD COLUMN IF NOT EXISTS po_number text,
+ADD COLUMN IF NOT EXISTS lr_file_urls text[] DEFAULT ARRAY[]::text[],
+ADD COLUMN IF NOT EXISTS invoice_no_ref text,
+ADD COLUMN IF NOT EXISTS invoice_number text,
+ADD COLUMN IF NOT EXISTS invoice_value numeric(12,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS base_vehicle_freight numeric(12,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS custom_fields jsonb DEFAULT '[]'::jsonb,
 ADD COLUMN IF NOT EXISTS payment_status text DEFAULT 'pending',
 ADD COLUMN IF NOT EXISTS advance_paid numeric(12,2) DEFAULT 0,
 ADD COLUMN IF NOT EXISTS total_paid_amount numeric(12,2) DEFAULT 0,
 ADD COLUMN IF NOT EXISTS balance_amount numeric(12,2) DEFAULT 0;
 
+-- Make all consignment fields completely optional on TRIPS (Allow NULL for quick/direct entries)
+ALTER TABLE trips ALTER COLUMN vehicle_id DROP NOT NULL;
+ALTER TABLE trips ALTER COLUMN client_id DROP NOT NULL;
+ALTER TABLE trips ALTER COLUMN from_location DROP NOT NULL;
+ALTER TABLE trips ALTER COLUMN to_location DROP NOT NULL;
+ALTER TABLE trips ALTER COLUMN loading_date DROP NOT NULL;
+
 -- Ensure columns exist on INVOICES even if table was created previously
 ALTER TABLE invoices 
+ADD COLUMN IF NOT EXISTS po_number text,
 ADD COLUMN IF NOT EXISTS is_direct boolean DEFAULT false;
+
+-- Allow optional client on INVOICES
+ALTER TABLE invoices ALTER COLUMN client_id DROP NOT NULL;
 
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access on payments" ON payments;

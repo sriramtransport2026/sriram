@@ -44,6 +44,7 @@ export function GenerateInvoice({
   const [selectedTripIds, setSelectedTripIds] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [poNumber, setPoNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [reverseCharge, setReverseCharge] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -124,10 +125,7 @@ export function GenerateInvoice({
       setErrorMsg('Please select at least one completed trip to invoice.');
       return;
     }
-    if (!invoiceNumber.trim()) {
-      setErrorMsg('Invoice number cannot be empty.');
-      return;
-    }
+    const finalInvNo = invoiceNumber.trim() || ('SRT-' + Date.now().toString().slice(-6));
 
     setIsGenerating(true);
     setErrorMsg('');
@@ -136,8 +134,10 @@ export function GenerateInvoice({
       const createdInvoice = await onGenerateInvoice({
         clientId: selectedClientId,
         tripIds: selectedTripIds,
-        invoiceNumber: invoiceNumber.trim(),
+        invoiceNumber: finalInvNo,
         invoiceDate,
+        po_number: poNumber.trim(),
+        poNumber: poNumber.trim(),
         gstPercent,
         notes,
         reverse_charge: reverseCharge,
@@ -159,7 +159,10 @@ export function GenerateInvoice({
       // Open print/download modal immediately
       setViewInvoiceModal({
         isOpen: true,
-        invoice: createdInvoice,
+        invoice: {
+          ...createdInvoice,
+          po_number: createdInvoice?.po_number || poNumber.trim()
+        },
         client: selectedClient,
         trips: selectedTrips,
       });
@@ -173,10 +176,52 @@ export function GenerateInvoice({
 
   const handleOpenPastInvoice = (inv) => {
     const invClient = inv.client || clients.find(c => c.id === inv.client_id) || null;
-    const invTrips = (inv.trips && inv.trips.length > 0) ? inv.trips : trips.filter(t => t.invoice_id === inv.id);
+    
+    // Try multiple matching strategies to find trips for this invoice
+    let invTrips = [];
+    
+    // 1. If invoice already has embedded trips (freshly created)
+    if (inv.trips && Array.isArray(inv.trips) && inv.trips.length > 0) {
+      invTrips = inv.trips;
+    }
+    
+    // 2. Match by invoice_id
+    if (invTrips.length === 0 && inv.id) {
+      invTrips = trips.filter(t => t.invoice_id === inv.id);
+    }
+    
+    // 3. Match by direct_invoice_number or invoice_number (for direct entry invoices)
+    if (invTrips.length === 0 && inv.invoice_number) {
+      const invNumLower = String(inv.invoice_number).trim().toLowerCase();
+      invTrips = trips.filter(t => 
+        String(t.direct_invoice_number || '').trim().toLowerCase() === invNumLower ||
+        String(t.invoice_number || '').trim().toLowerCase() === invNumLower ||
+        String(t.invoice_no_ref || '').trim().toLowerCase() === invNumLower
+      );
+    }
+    
+    // 4. Look directly in localStorage trips (in case trips prop had firm/scope filter)
+    if (invTrips.length === 0) {
+      try {
+        const rawTrips = JSON.parse(localStorage.getItem('SRT_TRIPS') || '[]');
+        const invNumLower = String(inv.invoice_number || '').trim().toLowerCase();
+        invTrips = rawTrips.filter(t => 
+          (inv.id && t.invoice_id === inv.id) ||
+          (invNumLower && (
+            String(t.direct_invoice_number || '').trim().toLowerCase() === invNumLower ||
+            String(t.invoice_number || '').trim().toLowerCase() === invNumLower ||
+            String(t.invoice_no_ref || '').trim().toLowerCase() === invNumLower
+          ))
+        );
+      } catch (e) {}
+    }
+    
     setViewInvoiceModal({
       isOpen: true,
-      invoice: inv,
+      invoice: {
+        ...inv,
+        po_number: inv.po_number || inv.poNumber || (invTrips[0]?.po_number) || ''
+      },
       client: invClient,
       trips: invTrips,
     });
@@ -283,7 +328,7 @@ export function GenerateInvoice({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Client Consignee <span className="text-rose-500">*</span>
+                  Client Consignee
                 </label>
                 <select
                   value={selectedClientId}
@@ -417,15 +462,14 @@ export function GenerateInvoice({
               </span>
             </div>
 
-            {/* Invoice Number & Date */}
+            {/* Invoice Number, Date & PO Number */}
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Invoice Number <span className="text-rose-500">*</span>
+                  Invoice Number
                 </label>
                 <input
                   type="text"
-                  required
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
@@ -434,14 +478,26 @@ export function GenerateInvoice({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Invoice Date <span className="text-rose-500">*</span>
+                  Invoice Date
                 </label>
                 <input
                   type="date"
-                  required
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  PO Number (Purchase Order / Work Order #)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. PO-2026/8841 (Optional)"
+                  value={poNumber}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:bg-white"
                 />
               </div>
             </div>

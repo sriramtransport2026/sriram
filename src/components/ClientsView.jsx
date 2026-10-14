@@ -85,26 +85,12 @@ export function ClientsView({ onBack, clients = [], trips = [], onSaveClient, on
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
-
-    if (formData.phone && !isValidPhone(formData.phone)) {
-      alert("Contact Phone number must be strictly 10 digits. (Currently: " + cleanPhone(formData.phone).length + " digits)");
-      return;
-    }
-
-    if (formData.gstin && !isValidGSTIN(formData.gstin)) {
-      alert("Invalid GSTIN format. GSTIN must be 15 alphanumeric characters (e.g. 29AABCA7061K1ZH).");
-      return;
-    }
-
-    if (formData.pan && !isValidPAN(formData.pan)) {
-      alert("Invalid PAN format. PAN must be 10 characters (e.g. AABCA7061K).");
-      return;
-    }
+    const finalName = formData.name.trim() || ('Client-' + Date.now().toString().slice(-4));
 
     await onSaveClient({
       id: editingClient?.id,
       ...formData,
+      name: finalName,
       phone: cleanPhone(formData.phone),
       gstin: cleanGSTIN(formData.gstin),
       pan: cleanPAN(formData.pan),
@@ -272,10 +258,9 @@ export function ClientsView({ onBack, clients = [], trips = [], onSaveClient, on
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name <span className="text-rose-500">*</span></label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company / Legal Name</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Ashirvad Pipes Pvt Ltd"
                   value={formData.name}
                   onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}

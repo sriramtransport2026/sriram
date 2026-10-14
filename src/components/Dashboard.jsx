@@ -53,10 +53,10 @@ export function Dashboard({
   const baseModules = [
     {
       id: 'new-trip',
-      title: 'New Trip Entry',
+      title: 'New LR Entry',
       subtitle: 'Issue digitized LR & calculate trip profit instantly',
       icon: PlusCircle,
-      badge: 'Quick Book Load',
+      badge: 'Quick Book LR',
       badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
       accentColor: 'hover:border-brand-gold group-hover:text-brand-gold-dark',
       iconBg: 'bg-amber-50 text-brand-gold-dark',

@@ -173,18 +173,21 @@ export function App() {
 
   // TRIP ACTIONS
   const handleSaveTrip = async (tripData) => {
-    await db.saveTrip({
+    const saved = await db.saveTrip({
       ...tripData,
       company_gstin: activeCompanyGstin,
       company_name: activeCompany.company_name
     });
     await loadAllData();
-    setSuccessModal({
-      title: tripData.id ? "Trip Updated Successfully!" : "New Trip Booked & Submitted!",
-      message: `Consignment Load #${tripData.load_id || tripData.lr_number || ''} details have been saved to the database.`,
-      actionLabel: "Go to Status Board",
-      onAction: () => setCurrentView('status-board')
-    });
+    if (tripData.id) {
+      setSuccessModal({
+        title: "LR Record Updated Successfully!",
+        message: `Consignment #${tripData.load_id || tripData.lr_number || ''} details have been updated.`,
+        actionLabel: "Go to Status Board",
+        onAction: () => setCurrentView('status-board')
+      });
+    }
+    return saved;
   };
 
   const handleUpdateTripStatus = async (tripId, newStatus) => {
@@ -401,11 +404,14 @@ export function App() {
         {currentView === 'new-trip' && (
           <NewTripEntry
             onBack={() => setCurrentView('dashboard')}
+            onNavigate={(v) => setCurrentView(v)}
+            onNavigateToStatusBoard={() => setCurrentView('status-board')}
             clients={accessibleClients}
             vehicles={accessibleVehicles}
             onSaveTrip={handleSaveTrip}
             onQuickAddVehicle={handleSaveVehicle}
             onQuickAddClient={handleSaveClient}
+            companySettings={activeCompany}
           />
         )}
 
